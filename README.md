@@ -1,6 +1,3 @@
-# docketdive
-South African Legal Chatbot 
-
 # DocketGPT - South African Legal AI Assistant
 
 DocketGPT is a comprehensive legal technology platform designed specifically for South African law. It combines artificial intelligence with legal expertise to provide students, legal professionals, and the general public with accessible legal assistance and educational resources.
@@ -95,13 +92,21 @@ cd docketgpt
 # Install dependencies
 npm install
 
-# Set up environment variables
-cp .env.example .env
-# Configure your .env file
+# Environment Variables
+# Note: Environment variables are already configured in the .env file
+# Review the .env file to ensure all required API keys and configurations are present
 
 # Run development server
 npm run dev
 ```
+
+### Environment Configuration
+The project includes a pre-configured `.env` file with:
+- **Database**: AstraDB configuration for data storage
+- **AI Providers**: Groq, OpenAI, and OpenRouter API keys
+- **Search**: Google Custom Search API for web searches
+- **TTS**: Voice synthesis API configurations
+- **Deployment**: Vercel deployment protection
 
 ### Production Deployment
 - **Platform**: Vercel optimized
@@ -140,6 +145,10 @@ We welcome contributions from the legal and tech communities:
 - **Developers**: Contribute to platform development
 - **Students**: Provide feedback on educational features
 - **Users**: Report issues and suggest improvements
+
+## 📞 Support & Contact
+
+For support, questions, or collaboration opportunities, please reach out through the appropriate channels in the repository.
 
 ---
 
