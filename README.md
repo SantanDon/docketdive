@@ -150,6 +150,6 @@ We welcome contributions from the legal and tech communities:
 
 For support, questions, or collaboration opportunities, please reach out through the appropriate channels in the repository.
 
----
+VIDEO DEMO : https://youtu.be/4uVjP-ANd88
 
 **DocketGPT** - Making South African law accessible, one query at a time.
