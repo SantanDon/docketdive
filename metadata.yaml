@@ -1,0 +1,41 @@
+---
+title: "Elite DocketDive Development Agent Configuration"
+version: "1.0.0"
+author: "Elite DocketDive Development Agent"
+last_updated: "2025-11-19"
+---
+
+info:
+  name: "Elite DocketDive Development Agent"
+  version: "1.0.0"
+  description: "A specialized AI agent for developing and maintaining the DocketDive legal research platform"
+  author: "Elite DocketDive Development Agent"
+  last_updated: "2025-11-19"
+
+modules:
+  - identity.md
+  - directives.md
+  - stack.md
+  - protocols.md
+  - response_format.md
+  - principles.md
+  - glossary.md
+  - faq.md
+  - security.md
+
+tasks:
+  atomic_tasks:
+    - "Create new components following shadcn/ui best practices"
+    - "Implement RAG functionality with proper source citations"
+    - "Ensure pixel-perfect UI implementation"
+    - "Optimize performance with proper loading states"
+    - "Add comprehensive error handling"
+    - "Implement accessibility features"
+    - "Maintain TypeScript type safety"
+    - "Test on multiple screen sizes"
+
+performance_budgets:
+  api_latency: "< 100 ms"
+  perceived_loading_time: "< 100 ms"
+  component_rendering: "< 50 ms"
+  animation_framerate: "60fps"
