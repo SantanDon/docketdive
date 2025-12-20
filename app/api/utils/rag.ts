@@ -353,9 +353,21 @@ export async function retrieveRelevantDocuments(query: string, conversationConte
     // Expand for most queries except very short ones
     const shouldExpand = enrichedQuery.length > 20;
     
-    const [expandedQueries, entities] = await Promise.all([
-      shouldExpand ? expandQuery(enrichedQuery) : Promise.resolve([enrichedQuery]),
-      Promise.resolve(identifyLegalEntities(enrichedQuery))
+    // Launch identification promise
+    const entitiesPromise = Promise.resolve(identifyLegalEntities(enrichedQuery));
+
+    // 2. Launch initial expansion and FIRST Parallel Search (Original Query)
+    console.time("⏱️ Concurrent Retrieval");
+    const expansionPromise = shouldExpand ? expandQuery(enrichedQuery) : Promise.resolve([enrichedQuery]);
+    
+    // We launch the search for the ORIGINAL query immediately without waiting for expansion
+    const originalQueryEmbeddingPromise = getEmbedding(enrichedQuery);
+    
+    // Process search as soon as possible
+    const [expandedQueries, originalVector, entities] = await Promise.all([
+      expansionPromise,
+      originalQueryEmbeddingPromise,
+      entitiesPromise
     ]);
     
     console.log(`📝 Query expansion: ${shouldExpand ? 'enabled' : 'skipped'} (${expandedQueries.length} queries)`);
@@ -368,43 +380,46 @@ export async function retrieveRelevantDocuments(query: string, conversationConte
       return [];
     }
 
-    // Use up to 3 queries for better coverage (original + 2 expansions)
-    const limitedQueries = expandedQueries.slice(0, 3);
+    // 3. Batch generate embeddings for the REST (the expanded ones)
+    const expansionQueries = expandedQueries.filter(q => q !== enrichedQuery);
+    const expansionVectorsPromise = expansionQueries.length > 0 
+      ? getEmbeddings(expansionQueries) 
+      : Promise.resolve([]);
 
-    // 1. Batch generate embeddings for all queries
-    console.time("⏱️ Batch Retrieval Embeddings");
-    const vectors = await getEmbeddings(limitedQueries);
-    console.timeEnd("⏱️ Batch Retrieval Embeddings");
+    // 4. Parallel search for expanded results
+    const expansionVectors = await expansionVectorsPromise;
+    
+    const queryPromises = [
+      // Original query results
+      (async () => {
+        if (!originalVector || originalVector.length === 0) return [];
+        return await collection.find({}, {
+          sort: { $vector: originalVector },
+          limit: TOP_K,
+          includeSimilarity: true,
+          projection: { content: 1, metadata: 1 },
+        }).toArray();
+      })()
+    ];
 
-    // 2. Parallel retrieval
-    console.time("⏱️ Parallel Search");
-    const queryPromises = limitedQueries.map(async (q, idx) => {
-      try {
-        const vector = vectors[idx];
+    // Add expansion search promises
+    expansionQueries.forEach((q, idx) => {
+      queryPromises.push((async () => {
+        const vector = expansionVectors[idx];
         if (!vector || vector.length === 0) return [];
-        
-        // Original query gets full TOP_K, expansions get much less to reduce noise/overhead
-        const limit = idx === 0 ? TOP_K : Math.ceil(TOP_K * 0.5);
-
-        const results = await collection
-          .find({}, {
-            sort: { $vector: vector },
-            limit: limit,
-            includeSimilarity: true,
-            projection: { content: 1, metadata: 1 }, // Only fetch needed fields
-          })
-          .toArray();
-
-        console.log(`  Query ${idx + 1} retrieved ${results.length} docs`);
-        return results;
-      } catch (err) {
-        console.error(`Error processing query ${idx + 1}:`, err);
-        return [];
-      }
+        const limit = Math.ceil(TOP_K * 0.5);
+        return await collection.find({}, {
+          sort: { $vector: vector },
+          limit: limit,
+          includeSimilarity: true,
+          projection: { content: 1, metadata: 1 },
+        }).toArray();
+      })());
     });
 
     const queryResults = await Promise.all(queryPromises);
-    console.timeEnd("⏱️ Parallel Search");
+    console.timeEnd("⏱️ Concurrent Retrieval");
+    
     for (const result of queryResults) {
       allResults.push(...result);
     }
@@ -519,40 +534,25 @@ DO NOT fabricate or guess legal information. DO NOT provide answers without sour
   return `${BASE}
 
 === CRITICAL ACCURACY INSTRUCTIONS ===
+You are a South African legal expert using ONLY the provided sources.
 
-You are about to receive LEGAL SOURCES that have been retrieved specifically for this query.
-Your job is to EXTRACT and PRESENT information FROM THESE SOURCES ONLY.
+PROHIBITED: 
+- NEVER provide ANY case law citations unless they are EXPLICITLY FOUND in the "Sources provided" section below.
+- NEVER invent citations. If a case name or citation is not below, it DOES NOT EXIST for the purpose of this answer.
+- NEVER use external knowledge to provide "examples" of cases.
 
-ABSOLUTE RULES:
-1. Answer ONLY using information EXPLICITLY written in the sources below
-2. If a Latin legal term is in the query (e.g., "actio de pauperie"), find and quote EXACTLY what the sources say about it
-3. NEVER invent, assume, or add information not in the sources
-4. NEVER confuse one legal concept with another
-5. Every legal claim MUST have a citation: 「quote」 [Source Name]
-
-PROHIBITED BEHAVIORS:
-- Adding information about topics NOT in the sources (e.g., don't mention "children" if sources are about "animals")
-- Guessing definitions of Latin terms instead of quoting the source
-- Mixing concepts from different areas of law
-- Providing general knowledge instead of source-specific content
-
-CORRECT APPROACH:
-- Read each source carefully
-- Identify passages directly relevant to the query terms
-- Quote relevant passages with citations
-- If the query asks about "actio de pauperie", find and quote text containing those exact words
-- If sources don't have the specific information, say "The sources don't contain specific information about [topic]"
-
-QUALITY CHECK BEFORE RESPONDING:
-- Does my answer quote directly from the sources?
-- Am I answering the SPECIFIC question asked?
-- Have I avoided adding information not in the sources?
+STRICT SOURCE ADHERENCE:
+1. Answer ONLY using information EXPLICITLY written in the sources below.
+2. If the user asks for cases and NONE are in the sources, you MUST say: "The provided legal sources do not contain specific case law for this query."
+3. Every claim MUST have a citation: 「quote」 [Source Name].
 
 Sources provided:
-
+----------------
 {INJECTED_CONTEXT}
+----------------
 
-Remember: Accuracy over completeness. If sources are limited, acknowledge it. This is information, not legal advice.`;
+FINAL COMMAND: DO NOT MENTION ANY CASE PROUDLY OR OTHERWISE IF IT IS NOT IN THE SOURCES ABOVE. ACCURACY IS LIFE-OR-DEATH.
+`;
 }
 
 // ========================= CITATION ENFORCER =========================
