@@ -1,0 +1,14 @@
+# Vercel Ignore
+.vercel
+.git
+node_modules
+smaterial
+documents
+*.pdf
+*.zip
+*.log
+.env
+.env.local
+.next
+coverage
+build

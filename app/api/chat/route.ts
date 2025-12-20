@@ -68,14 +68,14 @@ export async function POST(request: Request) {
     // Build conversation context string for query enrichment
     const recentMessages = conversationHistory.slice(-5); // Last 5 messages for context
     const conversationContextStr = recentMessages
-      .map(m => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`)
+      .map((m: Message) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`)
       .join("\n");
     
     // Extract the LAST assistant message for explicit context
     const lastAssistantMessage = conversationHistory
       .slice()
       .reverse()
-      .find(m => m.role === "assistant");
+      .find((m: Message) => m.role === "assistant");
     const lastAssistantTopic = lastAssistantMessage?.content.substring(0, 500) || "";
     
     // SPEED OPTIMIZATION: Skip memory for most queries, only retrieve documents
@@ -93,7 +93,7 @@ export async function POST(request: Request) {
     const hasContext = ragContext.length > 0;
 
     const conversationHistoryStr = memoryContext.recentMessages
-      .map(m => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`)
+      .map((m: Message) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`)
       .join("\n\n");
 
     const contextWindow = manageContextWindow(
@@ -187,7 +187,7 @@ I prioritize accuracy over completeness, so I cannot provide information without
           memoryUsed: {
             recentMessages: memoryContext.recentMessages.length,
             relevantHistory: memoryContext.relevantHistory.length,
-            hasSummary: !!memoryContext.conversationSummary,
+            hasSummary: "conversationSummary" in memoryContext ? !!memoryContext.conversationSummary : false,
             contextTruncated: contextWindow.truncated
           }
         },
@@ -249,7 +249,7 @@ I prioritize accuracy over completeness, so I cannot provide information without
         memoryUsed: {
           recentMessages: memoryContext.recentMessages.length,
           relevantHistory: memoryContext.relevantHistory.length,
-          hasSummary: !!memoryContext.conversationSummary,
+          hasSummary: "conversationSummary" in memoryContext ? !!memoryContext.conversationSummary : false,
           contextTruncated: contextWindow.truncated
         }
       },
