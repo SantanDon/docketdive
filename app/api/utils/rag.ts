@@ -2,6 +2,7 @@ import { DataAPIClient } from "@datastax/astra-db-ts";
 import { ChatOllama } from "@langchain/ollama";
 import { ChatGroq } from "@langchain/groq";
 import { format } from "date-fns";
+import { HuggingFaceInferenceEmbeddings } from "@langchain/community/embeddings/hf";
 import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -60,53 +61,22 @@ const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 // Cloud embedding via Hugging Face
 async function getCloudEmbedding(text: string): Promise<number[]> {
-  if (!HUGGINGFACE_API_KEY) {
-    throw new Error("HUGGINGFACE_API_KEY is not set for cloud embeddings");
-  }
-
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15000); // 15s timeout for cloud
+  if (!HUGGINGFACE_API_KEY) return [];
+  
+  // E5 models require "query: " or "passage: " prefix for optimal performance
+  const prefixedText = text.startsWith("query:") || text.startsWith("passage:") 
+    ? text 
+    : `query: ${text}`;
 
   try {
-    const response = await fetch(
-      `https://api-inference.huggingface.co/pipeline/feature-extraction/${HF_EMBED_MODEL}`,
-      {
-        headers: { 
-          "Authorization": `Bearer ${HUGGINGFACE_API_KEY}`,
-          "Content-Type": "application/json"
-        },
-        method: "POST",
-        body: JSON.stringify({ inputs: [text], options: { wait_for_model: true } }),
-        signal: controller.signal,
-      }
-    );
-
-    clearTimeout(timeout);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`❌ HF API Error (${response.status}):`, errorText);
-      throw new Error(`HF error: ${response.status} ${errorText}`);
-    }
-
-    const result = await response.json();
+    const embeddings = new HuggingFaceInferenceEmbeddings({
+      apiKey: HUGGINGFACE_API_KEY,
+      model: HF_EMBED_MODEL,
+    });
     
-    // Handle both [vector] and vector response formats
-    if (Array.isArray(result)) {
-      if (typeof result[0] === 'number') {
-        return result as number[];
-      } else if (Array.isArray(result[0]) && typeof result[0][0] === 'number') {
-        return result[0] as number[];
-      }
-    }
-    
-    console.error("❌ Unexpected HF response format:", JSON.stringify(result).substring(0, 100));
-    throw new Error("Invalid response format from Hugging Face");
+    return await embeddings.embedQuery(prefixedText);
   } catch (err: any) {
-    clearTimeout(timeout);
-    if (err.name === "AbortError") {
-      throw new Error("Hugging Face API timed out after 15s");
-    }
+    console.error("❌ Hugging Face Embedding failed:", err.message);
     throw err;
   }
 }
