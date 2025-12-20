@@ -5,6 +5,8 @@ import {
   retrieveRelevantDocuments,
   buildContext,
   generateResponse,
+  getEmbedding,
+  HF_EMBED_MODEL,
   verifyOllamaModel,
   getSystemPrompt,
   MIN_SIMILARITY_THRESHOLD,
@@ -282,16 +284,49 @@ I prioritize accuracy over completeness, so I cannot provide information without
 }
 
 export async function GET(request: Request) {
+  const diagnostics: any = {
+    NODE_ENV: process.env.NODE_ENV,
+    HAS_GROQ: !!process.env.GROQ_API_KEY,
+    HAS_HF: !!process.env.HUGGINGFACE_API_KEY,
+    HAS_ASTRA: !!process.env.ASTRA_DB_APPLICATION_TOKEN,
+    HAS_ENDPOINT: !!(process.env.ASTRA_DB_API_ENDPOINT || process.env.ENDPOINT),
+    HF_KEY_PREFIX: process.env.HUGGINGFACE_API_KEY ? process.env.HUGGINGFACE_API_KEY.substring(0, 10) : "none"
+  };
+
+  try {
+    // 1. Check HF Dimension
+    if (process.env.HUGGINGFACE_API_KEY) {
+      try {
+        const testEmbedding = await getEmbedding("test query");
+        diagnostics.HF_DIMENSION = testEmbedding.length;
+        diagnostics.HF_HEALTH = testEmbedding.length > 0 ? "ok" : "empty response";
+      } catch (e: any) {
+        diagnostics.HF_ERROR = e.message;
+      }
+    }
+
+    // 2. Check Astra DB
+    // @ts-ignore - access internal collection for test
+    const { collection } = await import("../utils/rag");
+    if (collection) {
+      try {
+        const count = await collection.countDocuments({}, { limit: 1 });
+        diagnostics.ASTRA_DB_HEALTH = "connected";
+        diagnostics.COLLECTION_COUNT_SAMPLE = count;
+      } catch (e: any) {
+        diagnostics.ASTRA_DB_ERROR = e.message;
+      }
+    } else {
+      diagnostics.ASTRA_DB_STATE = "not initialized (check token/endpoint)";
+    }
+
+  } catch (err: any) {
+    diagnostics.OVERALL_DIAGNOSTIC_ERROR = err.message;
+  }
+
   return new Response(JSON.stringify({ 
     status: "healthy", 
-    diagnostics: {
-      NODE_ENV: process.env.NODE_ENV,
-      HAS_GROQ: !!process.env.GROQ_API_KEY,
-      HAS_HF: !!process.env.HUGGINGFACE_API_KEY,
-      HAS_ASTRA: !!process.env.ASTRA_DB_APPLICATION_TOKEN,
-      HAS_ENDPOINT: !!(process.env.ASTRA_DB_API_ENDPOINT || process.env.ENDPOINT),
-      HF_KEY_PREFIX: process.env.HUGGINGFACE_API_KEY ? process.env.HUGGINGFACE_API_KEY.substring(0, 10) : "none"
-    }
+    diagnostics
   }), { status: 200 });
 }
 
