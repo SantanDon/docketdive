@@ -69,11 +69,11 @@ async function getCloudEmbedding(text: string): Promise<number[]> {
 
   try {
     const response = await fetch(
-      `https://api-inference.huggingface.co/pipeline/feature-extraction/${HF_EMBED_MODEL}`,
+      `https://api-inference.huggingface.co/models/${HF_EMBED_MODEL}`,
       {
         headers: { Authorization: `Bearer ${HUGGINGFACE_API_KEY}` },
         method: "POST",
-        body: JSON.stringify({ inputs: [text], options: { wait_for_model: true } }),
+        body: JSON.stringify({ inputs: text, options: { wait_for_model: true } }),
         signal: controller.signal,
       }
     );
@@ -87,10 +87,18 @@ async function getCloudEmbedding(text: string): Promise<number[]> {
     }
 
     const result = await response.json();
-    if (!Array.isArray(result) || result.length === 0) {
-      throw new Error("Invalid response format from Hugging Face");
+    
+    // Handle both [vector] and vector response formats
+    if (Array.isArray(result)) {
+      if (typeof result[0] === 'number') {
+        return result as number[];
+      } else if (Array.isArray(result[0]) && typeof result[0][0] === 'number') {
+        return result[0] as number[];
+      }
     }
-    return result[0];
+    
+    console.error("❌ Unexpected HF response format:", JSON.stringify(result).substring(0, 100));
+    throw new Error("Invalid response format from Hugging Face");
   } catch (err: any) {
     clearTimeout(timeout);
     if (err.name === "AbortError") {

@@ -307,7 +307,9 @@ export async function GET(request: Request) {
 
     // 2. Check Astra DB
     // @ts-ignore - access internal collection for test
-    const { collection } = await import("../utils/rag");
+    const { collection, COLLECTION_NAME } = await import("../utils/rag");
+    diagnostics.COLLECTION_NAME = COLLECTION_NAME;
+    
     if (collection) {
       try {
         const count = await collection.countDocuments({}, { limit: 1 });
@@ -315,9 +317,17 @@ export async function GET(request: Request) {
         diagnostics.COLLECTION_COUNT_SAMPLE = count;
       } catch (e: any) {
         diagnostics.ASTRA_DB_ERROR = e.message;
+        diagnostics.ASTRA_DB_STACK = e.stack;
       }
     } else {
-      diagnostics.ASTRA_DB_STATE = "not initialized (check token/endpoint)";
+      // Re-attempting initialization in diagnostic check
+      diagnostics.ASTRA_DB_STATE = "null (checking why...)";
+      diagnostics.ASTRA_DB_CREDS = {
+        HAS_TOKEN: !!process.env.ASTRA_DB_APPLICATION_TOKEN,
+        TOKEN_START: process.env.ASTRA_DB_APPLICATION_TOKEN?.substring(0, 10),
+        HAS_ENDPOINT: !!(process.env.ASTRA_DB_API_ENDPOINT || process.env.ENDPOINT),
+        ENDPOINT: process.env.ASTRA_DB_API_ENDPOINT || process.env.ENDPOINT
+      };
     }
 
   } catch (err: any) {
