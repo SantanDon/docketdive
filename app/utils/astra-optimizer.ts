@@ -16,9 +16,9 @@ export interface AstraSearchConfig {
 }
 
 export class AstraDBOptimizer {
-  private client: DataAPIClient;
-  private db: any;
-  private collection: any;
+  private client: DataAPIClient | null = null;
+  private db: any = null;
+  private collection: any = null;
   private config: AstraSearchConfig;
   private queryCache: Map<string, any> = new Map();
 
@@ -34,12 +34,17 @@ export class AstraDBOptimizer {
     };
 
     // Initialize Astra DB connection
-    if (process.env.ASTRA_DB_APPLICATION_TOKEN && process.env.ENDPOINT) {
-      this.client = new DataAPIClient(process.env.ASTRA_DB_APPLICATION_TOKEN);
-      this.db = this.client.db(process.env.ENDPOINT);
-      this.collection = this.db.collection(process.env.COLLECTION_NAME || 'docketdive');
+    if (process.env.ASTRA_DB_APPLICATION_TOKEN && (process.env.ENDPOINT || process.env.ASTRA_DB_API_ENDPOINT)) {
+      try {
+        this.client = new DataAPIClient(process.env.ASTRA_DB_APPLICATION_TOKEN);
+        const endpoint = (process.env.ENDPOINT || process.env.ASTRA_DB_API_ENDPOINT)!;
+        this.db = this.client.db(endpoint);
+        this.collection = this.db.collection(process.env.COLLECTION_NAME || 'docketdive');
+      } catch (err) {
+        console.error("❌ Failed to initialize Astra Optimizer DB:", err);
+      }
     } else {
-      throw new Error("Astra DB credentials not found in environment variables");
+      console.warn("⚠️ Astra DB credentials missing. Optimizer will operate in bypass mode.");
     }
   }
 
@@ -51,6 +56,10 @@ export class AstraDBOptimizer {
     filters?: Record<string, any>,
     limitOverride?: number
   ): Promise<any[]> {
+    if (!this.collection) {
+      console.warn("⚠️ Astra DB collection not initialized.");
+      return [];
+    }
     // Create a cache key based on the embedding and filters
     const cacheKey = this.generateCacheKey(queryEmbedding, filters, limitOverride);
     
@@ -183,6 +192,7 @@ export class AstraDBOptimizer {
    * Pre-warms the collection by ensuring indexes are ready
    */
   async warmupCollection(): Promise<void> {
+    if (!this.collection) return;
     try {
       // Execute a lightweight query to warm up the connection and indexes
       const result = await Promise.race([
@@ -254,9 +264,11 @@ export class AstraDBOptimizer {
     avgDocumentSize: number;
     lastUpdate: Date;
   }> {
+    if (!this.collection) {
+      return { documentCount: 0, avgDocumentSize: 0, lastUpdate: new Date() };
+    }
     try {
       // Note: Astra DB doesn't have direct count() or stats() methods like other DBs
-      // This is a simplified approach - in practice, you might need to implement this differently
       const sample = await this.collection.find({}, { limit: 100 }).toArray();
       
       const totalSize = sample.reduce((sum: number, doc: any) => {

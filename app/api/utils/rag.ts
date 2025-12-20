@@ -32,9 +32,26 @@ export const MAX_SOURCES_IN_CONTEXT = 6;  // Restored for better context
 export const KEYWORD_GATE_ENABLED = false;  // Disabled - was too restrictive
 
 // ========================= CLIENTS =========================
-const client = new DataAPIClient(process.env.ASTRA_DB_APPLICATION_TOKEN!);
-const db = client.db(process.env.ASTRA_DB_API_ENDPOINT || process.env.ENDPOINT!);
-const collection = db.collection(COLLECTION_NAME);
+let db: any = null;
+let collection: any = null;
+
+if (process.env.ASTRA_DB_APPLICATION_TOKEN) {
+  try {
+    const client = new DataAPIClient(process.env.ASTRA_DB_APPLICATION_TOKEN);
+    const dbEndpoint = process.env.ASTRA_DB_API_ENDPOINT || process.env.ENDPOINT;
+    
+    if (dbEndpoint) {
+      db = client.db(dbEndpoint);
+      collection = db.collection(COLLECTION_NAME);
+    } else {
+      console.warn("⚠️ Astra DB ENDPOINT missing. Vectors will be disabled.");
+    }
+  } catch (err) {
+    console.error("❌ Failed to initialize Astra DB client:", err);
+  }
+} else {
+  console.warn("⚠️ ASTRA_DB_APPLICATION_TOKEN missing. Vectors will be disabled.");
+}
 
 // ========================= EMBEDDING =========================
 // Embedding cache for repeated queries (in-memory, session-scoped)
@@ -203,6 +220,11 @@ export async function retrieveRelevantDocuments(query: string, conversationConte
     console.log(`🏷️ Identified entities:`, entities);
     
     const allResults: any[] = [];
+    
+    if (!collection) {
+      console.warn("⚠️ Retrieval skipped: Astra DB collection not initialized.");
+      return [];
+    }
 
     // Use up to 3 queries for better coverage (original + 2 expansions)
     const limitedQueries = expandedQueries.slice(0, 3);
