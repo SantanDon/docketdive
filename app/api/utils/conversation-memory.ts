@@ -233,12 +233,12 @@ export async function initializeMemoryCollection(): Promise<void> {
         // Test insert to check dimensions
         const testEmbedding = new Array(1024).fill(0);
         await db.collection(MEMORY_COLLECTION).insertOne({
-          id: 'dimension-test',
+          _id: 'dimension-test',
           $vector: testEmbedding,
           _test: true
         });
         // Clean up test document
-        await db.collection(MEMORY_COLLECTION).deleteOne({ id: 'dimension-test' });
+        await db.collection(MEMORY_COLLECTION).deleteOne({ _id: 'dimension-test' });
         console.log(`✅ Memory collection dimensions verified (1024)`);
       } catch (dimError: any) {
         if (dimError.message?.includes('dimension') || dimError.message?.includes('vector')) {

@@ -2,16 +2,20 @@ import { DataAPIClient } from "@datastax/astra-db-ts";
 import { ChatOllama } from "@langchain/ollama";
 import { ChatGroq } from "@langchain/groq";
 import { format } from "date-fns";
-import { HuggingFaceInferenceEmbeddings } from "@langchain/community/embeddings/hf";
 import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
 import { expandQuery, identifyLegalEntities, rankRelevance, hasKeywordMatches, extractSpecializedTerms } from "./semantic-search";
 import { buildContext as buildContextUtil } from "../../utils/responseProcessor";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-dotenv.config({ path: path.join(__dirname, "../../../.env") });
+// Load environment variables - Next.js usually handles this, but we reinforce it for scripts
+dotenv.config(); 
+
+console.log(`📡 RAG Initialization: 
+  NODE_ENV: ${process.env.NODE_ENV}
+  HAS_HF_KEY: ${!!process.env.HUGGINGFACE_API_KEY}
+  OLLAMA_URL: ${process.env.OLLAMA_BASE_URL || "default"}
+`);
 
 // ========================= CONFIG =========================
 export const OLLAMA_BASE_URL = (process.env.OLLAMA_BASE_URL || "http://localhost:11434").trim();
@@ -27,10 +31,10 @@ export const HUGGINGFACE_API_KEY = process.env.HUGGINGFACE_API_KEY?.trim();
 export const HF_EMBED_MODEL = "intfloat/multilingual-e5-large"; 
 
 // BALANCED: Speed + Accuracy optimized thresholds
-export const TOP_K = 12;  // Balanced retrieval (was 15, tried 10, now 12)
-export const MIN_SIMILARITY_THRESHOLD = 0.18;  // Lowered for better recall (was 0.22)
-export const MAX_SOURCES_IN_CONTEXT = 6;  // Restored for better context
-export const KEYWORD_GATE_ENABLED = false;  // Disabled - was too restrictive
+export const TOP_K = 8;  // Reduced for faster analysis (was 12)
+export const MIN_SIMILARITY_THRESHOLD = 0.22;  // Raised for better precision (was 0.18)
+export const MAX_SOURCES_IN_CONTEXT = 4;  // Reduced to speed up LLM synthesis (was 6)
+export const KEYWORD_GATE_ENABLED = false;
 
 // ========================= CLIENTS =========================
 export let db: any = null;
@@ -59,42 +63,75 @@ if (process.env.ASTRA_DB_APPLICATION_TOKEN) {
 const embeddingCache = new Map<string, { embedding: number[], timestamp: number }>();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
-// Cloud embedding via Hugging Face
-async function getCloudEmbedding(text: string): Promise<number[]> {
+// Cloud embedding via Hugging Face - Single or Batch
+async function fetchCloudEmbeddings(inputs: string | string[]): Promise<number[][]> {
   if (!HUGGINGFACE_API_KEY) return [];
   
-  const models = [
-    "intfloat/multilingual-e5-large",
-    "BAAI/bge-large-en-v1.5",
-    "intfloat/e5-large-v2"
-  ];
+  const model = "intfloat/multilingual-e5-large";
+  const isBatch = Array.isArray(inputs);
+  const inputsToProcess = isBatch ? (inputs as string[]) : [inputs as string];
+  
+  try {
+    console.log(`☁️ Sending embedding request to HF Router for ${model} (batch size: ${inputsToProcess.length})`);
+    
+    // E5 models require "query: " or "passage: " prefix
+    const prefixedInputs = inputsToProcess.map(text => {
+      const trimmed = text.trim();
+      return trimmed.startsWith("query:") || trimmed.startsWith("passage:") 
+        ? trimmed 
+        : `query: ${trimmed}`;
+    });
 
-  let lastError = "";
+    const response = await fetch(`https://router.huggingface.co/hf-inference/models/${model}`, {
+      method: "POST",
+      headers: { 
+        "Authorization": `Bearer ${HUGGINGFACE_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ 
+        inputs: isBatch ? prefixedInputs : prefixedInputs[0],
+        options: { wait_for_model: true }
+      }),
+    });
 
-  for (const model of models) {
-    try {
-      console.log(`☁️ Trying HF model: ${model}`);
-      const embeddings = new HuggingFaceInferenceEmbeddings({
-        apiKey: HUGGINGFACE_API_KEY,
-        model: model,
-      });
-      
-      const prefixedText = model.includes("e5") 
-        ? (text.startsWith("query:") ? text : `query: ${text}`)
-        : text;
-
-      const result = await embeddings.embedQuery(prefixedText);
-      if (result && result.length > 0) return result;
-    } catch (err: any) {
-      console.warn(`⚠️ HF model ${model} failed:`, err.message);
-      lastError = err.message;
+    if (!response.ok) {
+      const errType = await response.text();
+      console.error(`❌ HF API Error (${response.status}):`, errType);
+      throw new Error(`HF error: ${response.status} ${errType}`);
     }
-  }
 
-  throw new Error(`All HF models failed. Last error: ${lastError}`);
+    const result = await response.json();
+    
+    // Response can be [vector] or [[vector], [vector]] or [v1, v2, ...]
+    // Standardize to number[][]
+    let embeddings: number[][] = [];
+    
+    if (isBatch) {
+      if (Array.isArray(result) && Array.isArray(result[0])) {
+        embeddings = result;
+      } else if (Array.isArray(result) && typeof result[0] === 'number') {
+        // Some models return a single vector even for batch if batch size is 1
+        embeddings = [result as number[]];
+      }
+    } else {
+      const embedding = Array.isArray(result) && Array.isArray(result[0]) ? result[0] : result;
+      embeddings = [embedding as number[]];
+    }
+    
+    return embeddings;
+  } catch (err: any) {
+    console.error("❌ Hugging Face Embedding failed:", err.message);
+    throw err;
+  }
+}
+
+async function getCloudEmbedding(text: string): Promise<number[]> {
+  const results = await fetchCloudEmbeddings(text);
+  return results[0] || [];
 }
 
 export async function getEmbedding(text: string, retries = 2): Promise<number[]> {
+  console.time(`⏱️ Embedding [${text.substring(0, 20)}...]`);
   const textToEmbed = text.trim();
   
   // Check cache first
@@ -102,67 +139,142 @@ export async function getEmbedding(text: string, retries = 2): Promise<number[]>
   const cached = embeddingCache.get(cacheKey);
   if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
     console.log(`📦 Cache hit for embedding`);
+    console.timeEnd(`⏱️ Embedding [${text.substring(0, 20)}...]`);
     return cached.embedding;
   }
   
-  // Try cloud embedding first if in production/no local Ollama
-  // IMPROVEMENT: More robust check for "non-local" environment
   const isProduction = process.env.NODE_ENV === "production" || process.env.VERCEL === "1";
-  const useCloud = isProduction || !OLLAMA_BASE_URL.includes("localhost");
+  
+  // Use the constant or the direct env var, trimmed
+  const hfKey = (HUGGINGFACE_API_KEY || process.env.HUGGINGFACE_API_KEY || "").trim();
+  const useCloud = isProduction || hfKey.length > 0 || !OLLAMA_BASE_URL.includes("localhost");
 
   for (let i = 0; i < retries; i++) {
     try {
       let embedding: number[];
 
       if (useCloud) {
-        if (HUGGINGFACE_API_KEY) {
-          console.log(`☁️ Using Cloud Embedding (HF)`);
+        if (hfKey) {
+          console.log(`☁️ Using Cloud Embedding (HF) - Key: ${hfKey.substring(0, 5)}...`);
           embedding = await getCloudEmbedding(textToEmbed);
         } else if (isProduction) {
           console.warn("⚠️ HUGGINGFACE_API_KEY missing in production. Retrieval will be empty.");
-          return []; // Fail gracefully in production rather than trying localhost
+          console.timeEnd(`⏱️ Embedding [${text.substring(0, 20)}...]`);
+          return [];
         } else {
-          // Fallback to local if possible, but we already established useCloud
-          throw new Error("Cloud embedding requested but HUGGINGFACE_API_KEY is missing");
+          console.warn(`☁️ Cloud embedding requested (isProd=${isProduction}, hfKeyLen=${hfKey.length}) but key is missing. Falling back to local.`);
+          // Don't throw here, just fall through to local
+          throw new Error("Skipping to local");
         }
       } else {
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 6000);
+        const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s timeout for local
 
-        const res = await fetch(`${OLLAMA_BASE_URL}/api/embeddings`, {
+        const response = await fetch(`${OLLAMA_BASE_URL}/api/embeddings`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ model: EMBED_MODEL, prompt: textToEmbed }),
-          signal: controller.signal,
+          signal: controller.signal
         });
 
-        clearTimeout(timeout);
-        if (!res.ok) throw new Error(`Ollama error: ${await res.text()}`);
+        clearTimeout(timeoutId);
 
-        const data = await res.json();
+        if (!response.ok) throw new Error(`Ollama error: ${response.status}`);
+        const data = await response.json();
         embedding = data.embedding;
       }
 
-      if (!embedding || (embedding.length !== EXPECTED_DIMENSIONS && !useCloud))
-        throw new Error("Invalid embedding dimensions");
-
+      if (!embedding || embedding.length === 0) throw new Error("Empty embedding received");
+      
       // Cache the result
       embeddingCache.set(cacheKey, { embedding, timestamp: Date.now() });
       
+      console.timeEnd(`⏱️ Embedding [${text.substring(0, 20)}...]`);
       return embedding;
     } catch (err) {
       console.error(`Embedding attempt ${i + 1} failed:`, err);
       if (i === retries - 1) {
         if (isProduction) {
           console.error("❌ Critical: Embedding failed in production.", err);
+          console.timeEnd(`⏱️ Embedding [${text.substring(0, 20)}...]`);
           return []; // Graceful failure for production
         }
+        console.timeEnd(`⏱️ Embedding [${text.substring(0, 20)}...]`);
         throw err;
       }
       await new Promise(r => setTimeout(r, 300 * (i + 1)));
     }
   }
+  console.timeEnd(`⏱️ Embedding [${text.substring(0, 20)}...]`);
   return []; // Fallback
+}
+
+/**
+ * Batch embedding generation for multiple texts
+ */
+export async function getEmbeddings(texts: string[], retries = 2): Promise<number[][]> {
+  if (texts.length === 0) return [];
+  if (texts.length === 1 && texts[0]) return [await getEmbedding(texts[0])];
+
+  console.time(`⏱️ Batch Embedding [${texts.length} items]`);
+  
+  // 1. Separate cached vs non-cached
+  const results: (number[] | null)[] = texts.map(t => {
+    const cached = embeddingCache.get(t.trim().toLowerCase());
+    return (cached && Date.now() - cached.timestamp < CACHE_TTL) ? cached.embedding : null;
+  });
+
+  const missingIndices: number[] = [];
+  const missingTexts: string[] = [];
+  
+  results.forEach((res, idx) => {
+    if (!res) {
+      missingIndices.push(idx);
+      missingTexts.push(texts[idx] as string);
+    }
+  });
+
+  if (missingTexts.length === 0) {
+    console.log(`📦 Cache hit for all ${texts.length} batch items`);
+    console.timeEnd(`⏱️ Batch Embedding [${texts.length} items]`);
+    return results as number[][];
+  }
+
+  const isProduction = process.env.NODE_ENV === "production" || process.env.VERCEL === "1";
+  const hfKey = (HUGGINGFACE_API_KEY || process.env.HUGGINGFACE_API_KEY || "").trim();
+  const useCloud = isProduction || hfKey.length > 0 || !OLLAMA_BASE_URL.includes("localhost");
+
+  // 2. Fetch missing embeddings
+  let fetchedEmbeddings: number[][] = [];
+  
+  for (let i = 0; i < retries; i++) {
+    try {
+      if (useCloud && hfKey) {
+        fetchedEmbeddings = await fetchCloudEmbeddings(missingTexts);
+      } else {
+        // Fallback to sequential for local/other
+        fetchedEmbeddings = await Promise.all(missingTexts.map(t => getEmbedding(t, 1)));
+      }
+      break;
+    } catch (err) {
+      console.error(`Batch embedding attempt ${i + 1} failed:`, err);
+      if (i === retries - 1) throw err;
+      await new Promise(r => setTimeout(r, 500 * (i + 1)));
+    }
+  }
+
+  // 3. Merge results and cache
+  fetchedEmbeddings.forEach((emb, idx) => {
+    const originalIdx = missingIndices[idx] as number;
+    results[originalIdx] = emb;
+    embeddingCache.set(texts[originalIdx]!.trim().toLowerCase(), { 
+      embedding: emb, 
+      timestamp: Date.now() 
+    });
+  });
+
+  console.timeEnd(`⏱️ Batch Embedding [${texts.length} items]`);
+  return results as number[][];
 }
 
 // ========================= RETRIEVAL =========================
@@ -259,13 +371,20 @@ export async function retrieveRelevantDocuments(query: string, conversationConte
     // Use up to 3 queries for better coverage (original + 2 expansions)
     const limitedQueries = expandedQueries.slice(0, 3);
 
-    // Parallel embedding generation and retrieval
+    // 1. Batch generate embeddings for all queries
+    console.time("⏱️ Batch Retrieval Embeddings");
+    const vectors = await getEmbeddings(limitedQueries);
+    console.timeEnd("⏱️ Batch Retrieval Embeddings");
+
+    // 2. Parallel retrieval
+    console.time("⏱️ Parallel Search");
     const queryPromises = limitedQueries.map(async (q, idx) => {
       try {
-        const vector = await getEmbedding(q);
+        const vector = vectors[idx];
+        if (!vector || vector.length === 0) return [];
         
-        // Original query gets full TOP_K, expansions get slightly less
-        const limit = idx === 0 ? TOP_K : Math.ceil(TOP_K * 0.75);
+        // Original query gets full TOP_K, expansions get much less to reduce noise/overhead
+        const limit = idx === 0 ? TOP_K : Math.ceil(TOP_K * 0.5);
 
         const results = await collection
           .find({}, {
@@ -285,6 +404,7 @@ export async function retrieveRelevantDocuments(query: string, conversationConte
     });
 
     const queryResults = await Promise.all(queryPromises);
+    console.timeEnd("⏱️ Parallel Search");
     for (const result of queryResults) {
       allResults.push(...result);
     }

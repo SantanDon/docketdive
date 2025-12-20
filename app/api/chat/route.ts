@@ -94,12 +94,24 @@ export async function POST(request: Request) {
     // SPEED OPTIMIZATION: Skip memory for most queries, only retrieve documents
     const isComplexConversation = conversationHistory.length > 10 && query.length > 100;
     
+    console.time("⏱️ Total Chat Handler");
     const [memoryContext, docs] = await Promise.all([
       isComplexConversation 
-        ? buildMemoryContext(conversationHistory, query, userId, conversationId)
+        ? (async () => {
+            console.time("⏱️ Memory Context");
+            const res = await buildMemoryContext(conversationHistory, query, userId, conversationId);
+            console.timeEnd("⏱️ Memory Context");
+            return res;
+          })()
         : Promise.resolve({ recentMessages: conversationHistory.slice(-MAX_RECENT_MESSAGES), relevantHistory: [] }),
-      retrieveRelevantDocuments(query, conversationContextStr)
+      (async () => {
+        console.time("⏱️ Retrieval");
+        const res = await retrieveRelevantDocuments(query, conversationContextStr);
+        console.timeEnd("⏱️ Retrieval");
+        return res;
+      })()
     ]);
+    console.timeEnd("⏱️ Total RAG Step");
 
     const memoryContextStr = formatMemoryContextForPrompt(memoryContext);
     const ragContext = buildContext(docs);
@@ -174,7 +186,9 @@ ${hasContext ? `### Relevant Legal Documents:\n{INJECTED_CONTEXT}` : '\'\''}
       ? enhancedSystemPrompt.replace("{INJECTED_CONTEXT}", contextWindow.ragContext) 
       : enhancedSystemPrompt;
 
+    console.time("⏱️ LLM Generation");
     const answer = await generateResponse(query, contextWindow.ragContext, hasContext, provider, finalPrompt);
+    console.timeEnd("⏱️ LLM Generation");
 
     // ACCURACY CHECK: If no sources at all, ensure the response acknowledges this
     if (!hasContext || docs.length === 0) {
@@ -216,44 +230,55 @@ I prioritize accuracy over completeness, so I cannot provide information without
       finalAnswer += "\n\n> ⚠️ **Note:** This conversation is getting long, and some earlier context has been summarized or removed to stay within limits. For best results with a new topic, please **start a new chat**.";
     }
 
-    // Parallel embedding generation for speed
-    const [userMessageEmbedding, assistantMessageEmbedding] = await Promise.all([
-      generateMessageEmbedding(query),
-      generateMessageEmbedding(finalAnswer)
-    ]);
+    // OPTIMIZATION: Generate embeddings and store in memory BACKGROUND (non-blocking)
+    // This shaves off ~1s from the response time as the user doesn't need to wait for storage
+    (async () => {
+      try {
+        console.time("⏱️ Message Embeddings (Background)");
+        const [userMessageEmbedding, assistantMessageEmbedding] = await Promise.all([
+          generateMessageEmbedding(query),
+          generateMessageEmbedding(finalAnswer)
+        ]);
+        console.timeEnd("⏱️ Message Embeddings (Background)");
 
-    // Store both messages in parallel (ONLY if embeddings are valid to avoid DB dimension errors)
-    if (userMessageEmbedding.length > 0 && assistantMessageEmbedding.length > 0) {
-      Promise.all([
-        storeConversationMemory(
-          conversationId,
-          userId,
-          {
-            id: `msg_${Date.now()}_user`,
-            content: query,
-            role: "user",
-            timestamp: new Date().toISOString(),
-            status: "sent"
-          },
-          userMessageEmbedding
-        ),
-        storeConversationMemory(
-          conversationId,
-          userId,
-          {
-            id: `msg_${Date.now() + 1}_assistant`,
-            content: finalAnswer,
-            role: "assistant",
-            timestamp: new Date().toISOString(),
-            status: "sent",
-            sources
-          },
-          assistantMessageEmbedding
-        )
-      ]).catch(err => console.error("Failed to store conversation memory:", err));
-    } else {
-      console.warn("⚠️ Skipping conversation memory storage due to missing embeddings");
-    }
+        // Store both messages in parallel (ONLY if embeddings are valid to avoid DB dimension errors)
+        if (userMessageEmbedding.length > 0 && assistantMessageEmbedding.length > 0) {
+          Promise.all([
+            storeConversationMemory(
+              conversationId,
+              userId,
+              {
+                id: `msg_${Date.now()}_user`,
+                content: query,
+                role: "user",
+                timestamp: new Date().toISOString(),
+                status: "sent"
+              },
+              userMessageEmbedding
+            ),
+            storeConversationMemory(
+              conversationId,
+              userId,
+              {
+                id: `msg_${Date.now() + 1}_assistant`,
+                content: finalAnswer,
+                role: "assistant",
+                timestamp: new Date().toISOString(),
+                status: "sent",
+                sources
+              },
+              assistantMessageEmbedding
+            )
+          ]).catch(err => console.error("❌ Background Memory Storage failed:", err));
+        } else {
+          console.warn("⚠️ Skipping conversation memory storage due to missing embeddings");
+        }
+      } catch (err) {
+        console.error("❌ Background Post-Processing failed:", err);
+      }
+    })();
+
+    console.timeEnd("⏱️ Total Chat Handler");
 
     return new Response(JSON.stringify({
       response: finalAnswer,

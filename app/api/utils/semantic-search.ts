@@ -86,12 +86,20 @@ export function extractSpecializedTerms(query: string): string[] {
   return terms;
 }
 
+const expansionCache = new Map<string, string[]>();
+
 /**
  * LLM-based Query Correction & Expansion
  * IMPROVED: Always preserves original query, conservative with legal terms
  */
 export async function expandQuery(query: string): Promise<string[]> {
   const original = query.trim();
+  
+  // Check cache
+  if (expansionCache.has(original.toLowerCase())) {
+    console.log(`📦 Cache hit for expansion: "${original}"`);
+    return expansionCache.get(original.toLowerCase()) || [original];
+  }
   
   // CRITICAL: If query contains Latin legal terms, case names, or statutes,
   // DO NOT expand - return original only to prevent semantic drift
@@ -100,6 +108,7 @@ export async function expandQuery(query: string): Promise<string[]> {
     return [original];
   }
 
+  console.time(`⏱️ Expansion [${original.substring(0, 15)}...]`);
   try {
     if (GROQ_API_KEY) {
       const llm = new ChatGroq({
@@ -114,7 +123,7 @@ User Query: "${original}"
 
 TASK:
 1. Correct obvious spelling errors ONLY (e.g., "crimnal" → "criminal").
-2. Generate up to 2 search variations that use different but EQUIVALENT legal terminology.
+2. Generate up to 1-2 search variations that use different but EQUIVALENT legal terminology.
    - Each variation MUST preserve the core legal meaning.
    - DO NOT generalize (e.g., "contract breach" should NOT become "general obligations").
    - DO NOT replace specific terms with broader categories.
@@ -128,10 +137,7 @@ RULES:
 
 Example:
 Query: "elements of delictual liability"
-Output: ["elements of delictual liability", "requirements for delict in South African law", "delict elements South Africa"]
-
-Query: "breach of contract remedies"
-Output: ["breach of contract remedies", "contractual remedies for breach", "damages for breach of contract South Africa"]
+Output: ["elements of delictual liability", "delict elements South Africa"]
 
 Output:`;
 
@@ -151,8 +157,13 @@ Output:`;
           // Deduplicate while preserving order
           const unique = Array.from(new Set(allQueries.filter(Boolean)));
           
-          console.log(`📝 Query expansion: "${original}" → ${JSON.stringify(unique.slice(0, 3))}`);
-          return unique.slice(0, 3);
+          console.log(`📝 Query expansion: "${original}" → ${JSON.stringify(unique.slice(0, 2))}`);
+          console.timeEnd(`⏱️ Expansion [${original.substring(0, 15)}...]`);
+          
+          // Set cache
+          expansionCache.set(original.toLowerCase(), unique.slice(0, 2));
+          
+          return unique.slice(0, 2);
         }
       } catch (parseError) {
         console.error("Failed to parse LLM expansion response:", parseError);
@@ -164,6 +175,7 @@ Output:`;
 
   // Fallback: Return original query only
   console.log(`⚠️ Expansion failed, using original: "${original}"`);
+  console.timeEnd(`⏱️ Expansion [${original.substring(0, 15)}...]`);
   return [original];
 }
 
