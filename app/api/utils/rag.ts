@@ -63,22 +63,35 @@ const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 async function getCloudEmbedding(text: string): Promise<number[]> {
   if (!HUGGINGFACE_API_KEY) return [];
   
-  // E5 models require "query: " or "passage: " prefix for optimal performance
-  const prefixedText = text.startsWith("query:") || text.startsWith("passage:") 
-    ? text 
-    : `query: ${text}`;
+  const models = [
+    "intfloat/multilingual-e5-large",
+    "BAAI/bge-large-en-v1.5",
+    "intfloat/e5-large-v2"
+  ];
 
-  try {
-    const embeddings = new HuggingFaceInferenceEmbeddings({
-      apiKey: HUGGINGFACE_API_KEY,
-      model: HF_EMBED_MODEL,
-    });
-    
-    return await embeddings.embedQuery(prefixedText);
-  } catch (err: any) {
-    console.error("❌ Hugging Face Embedding failed:", err.message);
-    throw err;
+  let lastError = "";
+
+  for (const model of models) {
+    try {
+      console.log(`☁️ Trying HF model: ${model}`);
+      const embeddings = new HuggingFaceInferenceEmbeddings({
+        apiKey: HUGGINGFACE_API_KEY,
+        model: model,
+      });
+      
+      const prefixedText = model.includes("e5") 
+        ? (text.startsWith("query:") ? text : `query: ${text}`)
+        : text;
+
+      const result = await embeddings.embedQuery(prefixedText);
+      if (result && result.length > 0) return result;
+    } catch (err: any) {
+      console.warn(`⚠️ HF model ${model} failed:`, err.message);
+      lastError = err.message;
+    }
   }
+
+  throw new Error(`All HF models failed. Last error: ${lastError}`);
 }
 
 export async function getEmbedding(text: string, retries = 2): Promise<number[]> {

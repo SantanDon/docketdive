@@ -299,7 +299,7 @@ export async function GET(request: Request) {
       try {
         const testEmbedding = await getEmbedding("test query");
         diagnostics.HF_DIMENSION = testEmbedding.length;
-        diagnostics.HF_HEALTH = testEmbedding.length === 1024 ? "ok (1024)" : `ok (${testEmbedding.length})`;
+        diagnostics.HF_HEALTH = testEmbedding.length > 0 ? `ok (${testEmbedding.length})` : "failing (all models)";
       } catch (e: any) {
         diagnostics.HF_ERROR = e.message;
       }
