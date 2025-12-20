@@ -297,33 +297,9 @@ export async function GET(request: Request) {
     // 1. Check HF Dimension
     if (process.env.HUGGINGFACE_API_KEY) {
       try {
-        // Use a very simple test text
-        const textToEmbed = "legal";
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 10000);
-
-        const response = await fetch(
-            `https://api-inference.huggingface.co/models/${HF_EMBED_MODEL}`,
-            {
-              headers: { Authorization: `Bearer ${process.env.HUGGINGFACE_API_KEY.trim()}` },
-              method: "POST",
-              body: JSON.stringify({ inputs: textToEmbed, options: { wait_for_model: true } }),
-              signal: controller.signal,
-            }
-        );
-        
-        clearTimeout(timeout);
-        const result = await response.json();
-        diagnostics.HF_STATUS = response.status;
-        diagnostics.HF_RAW_SAMPLE = JSON.stringify(result).substring(0, 150);
-        
-        if (Array.isArray(result)) {
-            diagnostics.HF_TYPE = "array";
-            if (typeof result[0] === 'number') diagnostics.HF_DIMENSION = result.length;
-            else if (Array.isArray(result[0])) diagnostics.HF_DIMENSION = result[0].length;
-        } else {
-            diagnostics.HF_TYPE = typeof result;
-        }
+        const testEmbedding = await getEmbedding("test query");
+        diagnostics.HF_DIMENSION = testEmbedding.length;
+        diagnostics.HF_HEALTH = testEmbedding.length === 1024 ? "ok (1024)" : `ok (${testEmbedding.length})`;
       } catch (e: any) {
         diagnostics.HF_ERROR = e.message;
       }
@@ -331,20 +307,19 @@ export async function GET(request: Request) {
 
     // 2. Check Astra DB
     // @ts-ignore - access internal collection for test
-    const { collection, COLLECTION_NAME, db } = await import("../utils/rag");
+    const { collection, COLLECTION_NAME } = await import("../utils/rag");
     diagnostics.COLLECTION_NAME = COLLECTION_NAME;
     
     if (collection) {
       try {
         const count = await collection.countDocuments({}, { limit: 1 });
-        diagnostics.ASTRA_DB_HEALTH = "connected";
-        diagnostics.COLLECTION_COUNT_SAMPLE = count;
+        diagnostics.ASTRA_DB_STATE = "connected";
+        diagnostics.SAMPLE_COUNT = count;
       } catch (e: any) {
         diagnostics.ASTRA_DB_ERROR = e.message;
-        diagnostics.ASTRA_DB_STACK = e.stack;
       }
     } else {
-        diagnostics.ASTRA_DB_STATE = "collection is null";
+        diagnostics.ASTRA_DB_STATE = "collection is null (init failed)";
     }
 
   } catch (err: any) {

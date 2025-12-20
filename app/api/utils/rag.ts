@@ -69,11 +69,14 @@ async function getCloudEmbedding(text: string): Promise<number[]> {
 
   try {
     const response = await fetch(
-      `https://api-inference.huggingface.co/models/${HF_EMBED_MODEL}`,
+      `https://api-inference.huggingface.co/pipeline/feature-extraction/${HF_EMBED_MODEL}`,
       {
-        headers: { Authorization: `Bearer ${HUGGINGFACE_API_KEY}` },
+        headers: { 
+          "Authorization": `Bearer ${HUGGINGFACE_API_KEY}`,
+          "Content-Type": "application/json"
+        },
         method: "POST",
-        body: JSON.stringify({ inputs: text, options: { wait_for_model: true } }),
+        body: JSON.stringify({ inputs: [text], options: { wait_for_model: true } }),
         signal: controller.signal,
       }
     );
