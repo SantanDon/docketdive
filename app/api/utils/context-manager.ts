@@ -111,7 +111,9 @@ export function trackConversationEntities(messages: Message[]): Map<string, Enti
         entityMap.set(key, { type: 'example', mentions: [], lastMentioned: index });
       }
       const entity = entityMap.get(key)!;
-      entity.mentions.push(match[2].trim());
+      if (match[2]) {
+        entity.mentions.push(match[2].trim());
+      }
       entity.lastMentioned = index;
     }
     
