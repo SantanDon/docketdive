@@ -32,8 +32,8 @@ export const MAX_SOURCES_IN_CONTEXT = 6;  // Restored for better context
 export const KEYWORD_GATE_ENABLED = false;  // Disabled - was too restrictive
 
 // ========================= CLIENTS =========================
-let db: any = null;
-let collection: any = null;
+export let db: any = null;
+export let collection: any = null;
 
 if (process.env.ASTRA_DB_APPLICATION_TOKEN) {
   try {

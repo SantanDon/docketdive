@@ -297,9 +297,33 @@ export async function GET(request: Request) {
     // 1. Check HF Dimension
     if (process.env.HUGGINGFACE_API_KEY) {
       try {
-        const testEmbedding = await getEmbedding("test query");
-        diagnostics.HF_DIMENSION = testEmbedding.length;
-        diagnostics.HF_HEALTH = testEmbedding.length > 0 ? "ok" : "empty response";
+        // Use a very simple test text
+        const textToEmbed = "legal";
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 10000);
+
+        const response = await fetch(
+            `https://api-inference.huggingface.co/models/${HF_EMBED_MODEL}`,
+            {
+              headers: { Authorization: `Bearer ${process.env.HUGGINGFACE_API_KEY.trim()}` },
+              method: "POST",
+              body: JSON.stringify({ inputs: textToEmbed, options: { wait_for_model: true } }),
+              signal: controller.signal,
+            }
+        );
+        
+        clearTimeout(timeout);
+        const result = await response.json();
+        diagnostics.HF_STATUS = response.status;
+        diagnostics.HF_RAW_SAMPLE = JSON.stringify(result).substring(0, 150);
+        
+        if (Array.isArray(result)) {
+            diagnostics.HF_TYPE = "array";
+            if (typeof result[0] === 'number') diagnostics.HF_DIMENSION = result.length;
+            else if (Array.isArray(result[0])) diagnostics.HF_DIMENSION = result[0].length;
+        } else {
+            diagnostics.HF_TYPE = typeof result;
+        }
       } catch (e: any) {
         diagnostics.HF_ERROR = e.message;
       }
@@ -307,7 +331,7 @@ export async function GET(request: Request) {
 
     // 2. Check Astra DB
     // @ts-ignore - access internal collection for test
-    const { collection, COLLECTION_NAME } = await import("../utils/rag");
+    const { collection, COLLECTION_NAME, db } = await import("../utils/rag");
     diagnostics.COLLECTION_NAME = COLLECTION_NAME;
     
     if (collection) {
@@ -320,18 +344,7 @@ export async function GET(request: Request) {
         diagnostics.ASTRA_DB_STACK = e.stack;
       }
     } else {
-      // Re-attempting initialization in diagnostic check
-      diagnostics.ASTRA_DB_STATE = "null (checking why...)";
-      const rawToken = process.env.ASTRA_DB_APPLICATION_TOKEN || "";
-      const rawEndpoint = process.env.ASTRA_DB_API_ENDPOINT || process.env.ENDPOINT || "";
-      diagnostics.ASTRA_DB_CREDS = {
-        HAS_TOKEN: !!rawToken,
-        TOKEN_START: rawToken.substring(0, 10),
-        TOKEN_HAS_WHITESPACE: /\s/.test(rawToken),
-        HAS_ENDPOINT: !!rawEndpoint,
-        ENDPOINT_HAS_WHITESPACE: /\s/.test(rawEndpoint),
-        ENDPOINT_CLEAN: rawEndpoint.trim()
-      };
+        diagnostics.ASTRA_DB_STATE = "collection is null";
     }
 
   } catch (err: any) {
