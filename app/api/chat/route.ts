@@ -282,7 +282,17 @@ I prioritize accuracy over completeness, so I cannot provide information without
 }
 
 export async function GET(request: Request) {
-  return new Response(JSON.stringify({ status: "healthy", model: "granite3.3:2b" }), { status: 200 });
+  return new Response(JSON.stringify({ 
+    status: "healthy", 
+    diagnostics: {
+      NODE_ENV: process.env.NODE_ENV,
+      HAS_GROQ: !!process.env.GROQ_API_KEY,
+      HAS_HF: !!process.env.HUGGINGFACE_API_KEY,
+      HAS_ASTRA: !!process.env.ASTRA_DB_APPLICATION_TOKEN,
+      HAS_ENDPOINT: !!(process.env.ASTRA_DB_API_ENDPOINT || process.env.ENDPOINT),
+      HF_KEY_PREFIX: process.env.HUGGINGFACE_API_KEY ? process.env.HUGGINGFACE_API_KEY.substring(0, 10) : "none"
+    }
+  }), { status: 200 });
 }
 
 
