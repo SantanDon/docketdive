@@ -42,7 +42,7 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
   const [mode, setMode] = useState<Mode>('normal');
   const [eliLevel, setEliLevel] = useState<ELILevel>('ELI15');
   const [showLogin, setShowLogin] = useState(false);
-  const [provider, setProvider] = useState<"ollama" | "groq">("ollama");
+  const [provider, setProvider] = useState<"ollama" | "groq">("groq");
 
   const toggleStudentMode = useCallback(() => {
     setMode((m) => (m === "student" ? "normal" : "student"));

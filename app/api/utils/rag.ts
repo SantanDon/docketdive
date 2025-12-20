@@ -93,15 +93,25 @@ export async function getEmbedding(text: string, retries = 2): Promise<number[]>
   }
   
   // Try cloud embedding first if in production/no local Ollama
-  const useCloud = process.env.NODE_ENV === "production" || !OLLAMA_BASE_URL.includes("localhost");
+  // IMPROVEMENT: More robust check for "non-local" environment
+  const isProduction = process.env.NODE_ENV === "production" || process.env.VERCEL === "1";
+  const useCloud = isProduction || !OLLAMA_BASE_URL.includes("localhost");
 
   for (let i = 0; i < retries; i++) {
     try {
       let embedding: number[];
 
-      if (useCloud && HUGGINGFACE_API_KEY) {
-        console.log(`☁️ Using Cloud Embedding (HE)`);
-        embedding = await getCloudEmbedding(textToEmbed);
+      if (useCloud) {
+        if (HUGGINGFACE_API_KEY) {
+          console.log(`☁️ Using Cloud Embedding (HF)`);
+          embedding = await getCloudEmbedding(textToEmbed);
+        } else if (isProduction) {
+          console.warn("⚠️ HUGGINGFACE_API_KEY missing in production. Retrieval will be empty.");
+          return []; // Fail gracefully in production rather than trying localhost
+        } else {
+          // Fallback to local if possible, but we already established useCloud
+          throw new Error("Cloud embedding requested but HUGGINGFACE_API_KEY is missing");
+        }
       } else {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 6000);
@@ -128,11 +138,18 @@ export async function getEmbedding(text: string, retries = 2): Promise<number[]>
       
       return embedding;
     } catch (err) {
-      if (i === retries - 1) throw err;
+      console.error(`Embedding attempt ${i + 1} failed:`, err);
+      if (i === retries - 1) {
+        if (isProduction) {
+          console.error("❌ Critical: Embedding failed in production.", err);
+          return []; // Graceful failure for production
+        }
+        throw err;
+      }
       await new Promise(r => setTimeout(r, 300 * (i + 1)));
     }
   }
-  throw new Error("Embedding failed after retries");
+  return []; // Fallback
 }
 
 // ========================= RETRIEVAL =========================
@@ -545,9 +562,14 @@ export async function generateResponse(query: string, context: string, hasContex
   const systemPrompt = getSystemPrompt(hasContext, currentDate);
   const finalPrompt = systemPromptOverride || (hasContext ? systemPrompt.replace("{INJECTED_CONTEXT}", context) : systemPrompt);
 
+  const isProduction = process.env.NODE_ENV === "production" || process.env.VERCEL === "1";
   let chatModel;
 
-  if (provider === "groq" && GROQ_API_KEY) {
+  // In production, strictly prefer Groq if key is available
+  const effectiveProvider = (isProduction && GROQ_API_KEY) ? "groq" : provider;
+
+  if (effectiveProvider === "groq" && GROQ_API_KEY) {
+    if (isProduction) console.log(`☁️ Using Production AI (Groq)`);
     chatModel = new ChatGroq({
       apiKey: GROQ_API_KEY,
       model: GROQ_MODEL,
@@ -555,6 +577,7 @@ export async function generateResponse(query: string, context: string, hasContex
       maxTokens: 3000, // Balanced for quality
     });
   } else {
+    if (isProduction) console.warn("⚠️ Falling back to local AI in production - this may fail (Ollama)");
     chatModel = new ChatOllama({
       baseUrl: OLLAMA_BASE_URL,
       model: CHAT_MODEL,
