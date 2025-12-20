@@ -322,11 +322,15 @@ export async function GET(request: Request) {
     } else {
       // Re-attempting initialization in diagnostic check
       diagnostics.ASTRA_DB_STATE = "null (checking why...)";
+      const rawToken = process.env.ASTRA_DB_APPLICATION_TOKEN || "";
+      const rawEndpoint = process.env.ASTRA_DB_API_ENDPOINT || process.env.ENDPOINT || "";
       diagnostics.ASTRA_DB_CREDS = {
-        HAS_TOKEN: !!process.env.ASTRA_DB_APPLICATION_TOKEN,
-        TOKEN_START: process.env.ASTRA_DB_APPLICATION_TOKEN?.substring(0, 10),
-        HAS_ENDPOINT: !!(process.env.ASTRA_DB_API_ENDPOINT || process.env.ENDPOINT),
-        ENDPOINT: process.env.ASTRA_DB_API_ENDPOINT || process.env.ENDPOINT
+        HAS_TOKEN: !!rawToken,
+        TOKEN_START: rawToken.substring(0, 10),
+        TOKEN_HAS_WHITESPACE: /\s/.test(rawToken),
+        HAS_ENDPOINT: !!rawEndpoint,
+        ENDPOINT_HAS_WHITESPACE: /\s/.test(rawEndpoint),
+        ENDPOINT_CLEAN: rawEndpoint.trim()
       };
     }
 

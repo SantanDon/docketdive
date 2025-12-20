@@ -13,17 +13,17 @@ const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.join(__dirname, "../../../.env") });
 
 // ========================= CONFIG =========================
-export const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || "http://localhost:11434";
-export const EMBED_MODEL = process.env.EMBED_MODEL || "dengcao/Qwen3-Embedding-0.6B:Q8_0";
-export const CHAT_MODEL = process.env.CHAT_MODEL || "qwen-ultra-fast:latest";
-export const COLLECTION_NAME = process.env.COLLECTION_NAME || "docketdive";
+export const OLLAMA_BASE_URL = (process.env.OLLAMA_BASE_URL || "http://localhost:11434").trim();
+export const EMBED_MODEL = (process.env.EMBED_MODEL || "dengcao/Qwen3-Embedding-0.6B:Q8_0").trim();
+export const CHAT_MODEL = (process.env.CHAT_MODEL || "qwen-ultra-fast:latest").trim();
+export const COLLECTION_NAME = (process.env.COLLECTION_NAME || "docketdive").trim();
 export const EXPECTED_DIMENSIONS = 1024;
-export const GROQ_API_KEY = process.env.GROQ_API_KEY;
+export const GROQ_API_KEY = process.env.GROQ_API_KEY?.trim();
 export const GROQ_MODEL = "llama-3.3-70b-versatile";
 
 // Cloud Embedding Configuration
-export const HUGGINGFACE_API_KEY = process.env.HUGGINGFACE_API_KEY;
-export const HF_EMBED_MODEL = "intfloat/multilingual-e5-large"; // Good replacement for Qwen-Embedding
+export const HUGGINGFACE_API_KEY = process.env.HUGGINGFACE_API_KEY?.trim();
+export const HF_EMBED_MODEL = "intfloat/multilingual-e5-large"; 
 
 // BALANCED: Speed + Accuracy optimized thresholds
 export const TOP_K = 12;  // Balanced retrieval (was 15, tried 10, now 12)
@@ -37,8 +37,8 @@ let collection: any = null;
 
 if (process.env.ASTRA_DB_APPLICATION_TOKEN) {
   try {
-    const client = new DataAPIClient(process.env.ASTRA_DB_APPLICATION_TOKEN);
-    const dbEndpoint = process.env.ASTRA_DB_API_ENDPOINT || process.env.ENDPOINT;
+    const client = new DataAPIClient(process.env.ASTRA_DB_APPLICATION_TOKEN.trim());
+    const dbEndpoint = (process.env.ASTRA_DB_API_ENDPOINT || process.env.ENDPOINT)?.trim();
     
     if (dbEndpoint) {
       db = client.db(dbEndpoint);
