@@ -259,7 +259,7 @@ export class AstraDBOptimizer {
       // This is a simplified approach - in practice, you might need to implement this differently
       const sample = await this.collection.find({}, { limit: 100 }).toArray();
       
-      const totalSize = sample.reduce((sum, doc) => {
+      const totalSize = sample.reduce((sum: number, doc: any) => {
         return sum + JSON.stringify(doc).length;
       }, 0);
       

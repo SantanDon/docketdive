@@ -179,8 +179,8 @@ export class HybridSearch {
             hybridScore: keywordScore
           };
         })
-        .filter(result => result.keywordScore >= this.config.minKeywordScore)
-        .sort((a, b) => b.keywordScore - a.keywordScore)
+        .filter((result: SearchResult) => (result.keywordScore || 0) >= this.config.minKeywordScore)
+        .sort((a: SearchResult, b: SearchResult) => (b.keywordScore || 0) - (a.keywordScore || 0))
         .slice(0, this.config.topK);
 
       return keywordResults;
@@ -218,17 +218,17 @@ export class HybridSearch {
         // This document was found by both searches, combine scores
         resultMap.set(existingResult.content, {
           ...existingResult,
-          keywordScore: keywordResult.keywordScore,
+          keywordScore: keywordResult.keywordScore || 0,
           hybridScore: 
             (existingResult.similarity * this.config.vectorWeight) + 
-            (keywordResult.keywordScore * this.config.keywordWeight)
+            ((keywordResult.keywordScore || 0) * this.config.keywordWeight)
         });
       } else {
         // This document was only found by keyword search
         resultMap.set(keywordResult.content, {
           ...keywordResult,
           similarity: 0, // Will be updated if vector search also found this doc
-          hybridScore: keywordResult.keywordScore * this.config.keywordWeight
+          hybridScore: (keywordResult.keywordScore || 0) * this.config.keywordWeight
         });
       }
     }

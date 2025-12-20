@@ -92,6 +92,7 @@ export function trackConversationEntities(messages: Message[]): Map<string, Enti
     const ordinalMatches = msg.content.matchAll(ordinalPattern);
     
     for (const match of ordinalMatches) {
+      if (!match[1] || !match[2]) continue;
       const key = `${match[1]}_${match[2]}`.toLowerCase();
       if (!entityMap.has(key)) {
         entityMap.set(key, { type: 'ordinal', mentions: [], lastMentioned: index });
@@ -122,6 +123,7 @@ export function trackConversationEntities(messages: Message[]): Map<string, Enti
     const legalMatches = msg.content.matchAll(legalTermPattern);
     
     for (const match of legalMatches) {
+      if (!match[1]) continue;
       const key = match[1].toLowerCase();
       if (!entityMap.has(key)) {
         entityMap.set(key, { type: 'legal_term', mentions: [], lastMentioned: index });

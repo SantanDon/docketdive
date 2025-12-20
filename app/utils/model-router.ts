@@ -178,7 +178,7 @@ export class ModelRouter {
       }
 
       // Add domain to scores if it has a positive score
-      if (score > 0) {
+      if (score > 0 && modelConfig.legalDomains && modelConfig.legalDomains[0]) {
         domainScores[modelConfig.legalDomains[0]] = (domainScores[modelConfig.legalDomains[0]] || 0) + score;
       }
     }
@@ -238,7 +238,7 @@ export class ModelRouter {
     
     if (classification.confidence >= this.config.routingThreshold && classification.relevantModels.length > 0) {
       // Use the highest priority relevant model
-      modelName = classification.relevantModels[0];
+      modelName = classification.relevantModels[0]!;
     } else {
       // Fall back to default model
       modelName = "default-ollama";

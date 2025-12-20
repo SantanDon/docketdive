@@ -21,8 +21,8 @@ export interface DocumentChunk {
     originalLength: number;
     chunkLength: number;
     isParagraphBased: boolean;
-    previousChunkId?: string;
-    nextChunkId?: string;
+    previousChunkId?: string | undefined;
+    nextChunkId?: string | undefined;
   };
 }
 
@@ -67,7 +67,7 @@ export class ChunkingOptimizer {
     }
 
     // Create chunk objects with metadata
-    return chunks.map((content, index, array) => ({
+    return chunks.map((content, index, array): DocumentChunk => ({
       id: `${documentId || 'doc'}_${index}`,
       content,
       metadata: {
@@ -120,9 +120,9 @@ export class ChunkingOptimizer {
         const subChunks = this.chunkBySentences(currentChunk);
         // Add all but the first sub-chunk to our chunks array
         if (subChunks.length > 1) {
-          chunks.push(subChunks[0]);
+          chunks.push(subChunks[0]!);
           for (let i = 1; i < subChunks.length; i++) {
-            chunks.push(subChunks[i]);
+            chunks.push(subChunks[i]!);
           }
           currentChunk = '';
           currentChunkSize = 0;
@@ -168,7 +168,7 @@ export class ChunkingOptimizer {
     let currentChunkSize = 0;
 
     for (let i = 0; i < sentences.length; i++) {
-      const sentence = sentences[i].trim();
+      const sentence = sentences[i]!.trim();
       if (!sentence) continue;
 
       const sentenceLength = sentence.length;
@@ -264,11 +264,11 @@ export class ChunkingOptimizer {
     let i = 0;
 
     while (i < chunks.length) {
-      let current = chunks[i];
+      let current = chunks[i]!;
       
       // If current chunk is too small and there's a next chunk, consider merging
       if (current.metadata.chunkLength < this.config.minChunkSize && i < chunks.length - 1) {
-        const next = chunks[i + 1];
+        const next = chunks[i + 1]!;
         
         // Merge with next chunk if it doesn't make it too large
         if (current.content.length + next.content.length <= this.config.maxChunkSize) {

@@ -132,7 +132,7 @@ export class ContextCompressor {
       // Extract source identifier from section (e.g., "Source 1: ...")
       const sourceMatch = section.match(/Source (\d+):/);
       if (sourceMatch) {
-        const sourceIndex = parseInt(sourceMatch[1], 10) - 1;
+        const sourceIndex = parseInt(sourceMatch[1]!, 10) - 1;
         if (sourceIndex >= 0 && sourceIndex < sources.length) {
           // Use similarity score as rank (higher is better)
           sectionRankMap.set(section, sources[sourceIndex].similarity || 0);
@@ -243,7 +243,7 @@ export class ContextCompressor {
     
     if (sections.length === 1) {
       // If there's only one section, just truncate it
-      return this.truncateToLength(sections[0], maxSize);
+      return this.truncateToLength(sections[0]!, maxSize);
     }
 
     // Calculate how much we can take from each section proportionally
@@ -253,7 +253,7 @@ export class ContextCompressor {
 
     let adjustedContext = '';
     for (let i = 0; i < sections.length; i++) {
-      const section = sections[i];
+      const section = sections[i]!;
       const currentSize = i < remainingSize ? perSectionSize + 1 : perSectionSize;
       const processedSection = this.truncateToLength(section, currentSize);
       adjustedContext += processedSection;
@@ -308,17 +308,17 @@ export class ContextCompressor {
       const step = Math.max(1, Math.floor(sentences.length / numSentencesToKeep));
 
       for (let i = 0; i < sentences.length && selectedSentences.length < numSentencesToKeep; i += step) {
-        selectedSentences.push(sentences[i]);
+        selectedSentences.push(sentences[i]!);
       }
 
       // Ensure we include the first and last if they're not already included
-      if (!selectedSentences.includes(sentences[0])) {
-        selectedSentences.unshift(sentences[0]);
+      if (!selectedSentences.includes(sentences[0]!)) {
+        selectedSentences.unshift(sentences[0]!);
       }
 
-      if (!selectedSentences.includes(sentences[sentences.length - 1]) && 
+      if (!selectedSentences.includes(sentences[sentences.length - 1]!) && 
           selectedSentences.length < numSentencesToKeep) {
-        selectedSentences.push(sentences[sentences.length - 1]);
+        selectedSentences.push(sentences[sentences.length - 1]!);
       }
 
       // Trim to exact number needed

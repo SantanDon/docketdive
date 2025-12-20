@@ -69,7 +69,7 @@ export class ABTestingFramework {
       query,
       async () => {
         const docs = await retrieveRelevantDocuments(query);
-        const context = buildContext(docs, 0.10, 5);
+        const context = buildContext(docs);
         const hasContext = context.length > 0;
         
         const response = await originalGenerateResponse(query, context, hasContext, "ollama");
@@ -118,7 +118,7 @@ export class ABTestingFramework {
         const docs = await hybridSearch.optimizedSearch(query, embedding);
         
         // Build context
-        let context = buildContext(docs, 0.10, 5);
+        let context = buildContext(docs);
         
         // Compress context if needed
         if (context.length > 2000) {
@@ -290,7 +290,7 @@ export class ABTestingFramework {
     this.results = [];
 
     for (let i = 0; i < AB_TEST_QUERIES.length; i++) {
-      const testQuery = AB_TEST_QUERIES[i];
+      const testQuery = AB_TEST_QUERIES[i]!;
       const result = await this.runSingleABTest(testQuery);
       this.results.push(result);
     }
@@ -331,15 +331,14 @@ export class ABTestingFramework {
       console.log(`   Fastest Improvement: ${Math.max(...completedTests.map(r => r.responseTimeImprovement)).toFixed(2)}ms`);
       console.log(`   Slowest Change: ${Math.min(...completedTests.map(r => r.responseTimeImprovement)).toFixed(2)}ms`);
 
-      // Quality metrics
       const qualityBetter = completedTests.filter(r => r.qualityComparison === 1).length;
       const qualitySame = completedTests.filter(r => r.qualityComparison === 0).length;
-      const qualityWorse = completedTests.filter(r => r.qualityComparison === -1).length;
+      const localQualityWorse = completedTests.filter(r => r.qualityComparison === -1).length;
 
       console.log(`\n🔍 QUALITY METRICS:`);
       console.log(`   Quality Better: ${qualityBetter}/${completedTests.length} (${((qualityBetter / completedTests.length) * 100).toFixed(1)}%)`);
       console.log(`   Quality Same: ${qualitySame}/${completedTests.length} (${((qualitySame / completedTests.length) * 100).toFixed(1)}%)`);
-      console.log(`   Quality Worse: ${qualityWorse}/${completedTests.length} (${((qualityWorse / completedTests.length) * 100).toFixed(1)}%)`);
+      console.log(`   Quality Worse: ${localQualityWorse}/${completedTests.length} (${((localQualityWorse / completedTests.length) * 100).toFixed(1)}%)`);
 
       // Citation metrics
       const citationBetter = completedTests.filter(r => r.citationComparison === 1).length;
@@ -385,7 +384,8 @@ export class ABTestingFramework {
     console.log(`\n🎯 OVERALL ASSESSMENT:`);
     console.log(`   The optimized system is ${Math.abs(overallImprovement).toFixed(1)}% ${overallImprovement >= 0 ? 'faster' : 'slower'} than the original on average`);
     console.log(`   ${overallImprovement >= 0 ? '✅ Performance improved!' : '⚠️ Performance degraded!'} `);
-    console.log(`   ${qualityWorse === 0 ? '✅ Quality maintained!' : '⚠️ Quality degradation detected!'} `);
+    const finalQualityWorse = completedTests.filter(r => r.qualityComparison === -1).length;
+    console.log(`   ${finalQualityWorse === 0 ? '✅ Quality maintained!' : '⚠️ Quality degradation detected!'} `);
 
     console.log("\n" + "=" .repeat(80));
     console.log("🏁 A/B Testing Complete!\n");

@@ -138,7 +138,7 @@ function IconContainer({
   const [hovered, setHovered] = useState(false);
 
   return (
-    <Link href={href} onClick={onClick}>
+    <Link href={href} {...(onClick ? { onClick: () => onClick() } : {})}>
       <motion.div
         ref={ref}
         style={{ width, height }}

@@ -27,7 +27,7 @@ export {
   Send as SendIcon,
   Paperclip as PaperclipIcon,
   ArrowRight as ArrowRightIcon,
-  ArrowUpTray as ArrowUpTrayIcon,
+  Upload as ArrowUpTrayIcon,
   
   // Feedback & Status Icons
   Sparkles as SparklesIcon,
@@ -45,8 +45,8 @@ export {
   Moon as MoonIcon,
   
   // Search Icons
-  MagnifyingGlass as SearchIcon,
-  XMark as CloseIcon,
+  Search as SearchIcon,
+  X as CloseIcon,
 } from 'lucide-react';
 
 /**

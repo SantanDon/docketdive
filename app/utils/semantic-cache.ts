@@ -57,9 +57,9 @@ export class SemanticCache {
     let normB = 0;
 
     for (let i = 0; i < vecA.length; i++) {
-      dotProduct += vecA[i] * vecB[i];
-      normA += Math.pow(vecA[i], 2);
-      normB += Math.pow(vecB[i], 2);
+      dotProduct += vecA[i]! * vecB[i]!;
+      normA += Math.pow(vecA[i]!, 2);
+      normB += Math.pow(vecB[i]!, 2);
     }
 
     if (normA === 0 || normB === 0) {
