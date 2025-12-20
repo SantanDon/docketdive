@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createRequire } from 'module';
 
 const require = createRequire(import.meta.url);
-const pdf = require('pdf-parse');
+const pdf = require('pdf-parse/lib/pdf-parse.js');
 const mammoth = require('mammoth');
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
