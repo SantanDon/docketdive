@@ -44,6 +44,17 @@ export async function POST(request: Request) {
       userId = "default_user"
     } = body;
 
+    // Diagnostic logging for Production debugging (safe snippets)
+    console.log("🛠️ Environment Check:", {
+      NODE_ENV: process.env.NODE_ENV,
+      VERCEL: process.env.VERCEL,
+      HAS_GROQ: !!process.env.GROQ_API_KEY,
+      HAS_HF: !!process.env.HUGGINGFACE_API_KEY,
+      HF_KEY_START: process.env.HUGGINGFACE_API_KEY?.substring(0, 5),
+      HAS_ASTRA: !!process.env.ASTRA_DB_APPLICATION_TOKEN,
+      ENDPOINT_PRESENT: !!(process.env.ASTRA_DB_API_ENDPOINT || process.env.ENDPOINT)
+    });
+
     if (!message || typeof message !== "string" || message.trim().length === 0) {
       return new Response(JSON.stringify({ error: "Message is required" }), { status: 400 });
     }
@@ -209,34 +220,38 @@ I prioritize accuracy over completeness, so I cannot provide information without
       generateMessageEmbedding(finalAnswer)
     ]);
 
-    // Store both messages in parallel (fire and forget for speed)
-    Promise.all([
-      storeConversationMemory(
-        conversationId,
-        userId,
-        {
-          id: `msg_${Date.now()}_user`,
-          content: query,
-          role: "user",
-          timestamp: new Date().toISOString(),
-          status: "sent"
-        },
-        userMessageEmbedding
-      ),
-      storeConversationMemory(
-        conversationId,
-        userId,
-        {
-          id: `msg_${Date.now() + 1}_assistant`,
-          content: finalAnswer,
-          role: "assistant",
-          timestamp: new Date().toISOString(),
-          status: "sent",
-          sources
-        },
-        assistantMessageEmbedding
-      )
-    ]).catch(err => console.error("Failed to store conversation memory:", err));
+    // Store both messages in parallel (ONLY if embeddings are valid to avoid DB dimension errors)
+    if (userMessageEmbedding.length > 0 && assistantMessageEmbedding.length > 0) {
+      Promise.all([
+        storeConversationMemory(
+          conversationId,
+          userId,
+          {
+            id: `msg_${Date.now()}_user`,
+            content: query,
+            role: "user",
+            timestamp: new Date().toISOString(),
+            status: "sent"
+          },
+          userMessageEmbedding
+        ),
+        storeConversationMemory(
+          conversationId,
+          userId,
+          {
+            id: `msg_${Date.now() + 1}_assistant`,
+            content: finalAnswer,
+            role: "assistant",
+            timestamp: new Date().toISOString(),
+            status: "sent",
+            sources
+          },
+          assistantMessageEmbedding
+        )
+      ]).catch(err => console.error("Failed to store conversation memory:", err));
+    } else {
+      console.warn("⚠️ Skipping conversation memory storage due to missing embeddings");
+    }
 
     return new Response(JSON.stringify({
       response: finalAnswer,

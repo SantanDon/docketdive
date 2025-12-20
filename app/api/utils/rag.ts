@@ -64,21 +64,40 @@ async function getCloudEmbedding(text: string): Promise<number[]> {
     throw new Error("HUGGINGFACE_API_KEY is not set for cloud embeddings");
   }
 
-  const response = await fetch(
-    `https://api-inference.huggingface.co/pipeline/feature-extraction/${HF_EMBED_MODEL}`,
-    {
-      headers: { Authorization: `Bearer ${HUGGINGFACE_API_KEY}` },
-      method: "POST",
-      body: JSON.stringify({ inputs: [text], options: { wait_for_model: true } }),
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000); // 15s timeout for cloud
+
+  try {
+    const response = await fetch(
+      `https://api-inference.huggingface.co/pipeline/feature-extraction/${HF_EMBED_MODEL}`,
+      {
+        headers: { Authorization: `Bearer ${HUGGINGFACE_API_KEY}` },
+        method: "POST",
+        body: JSON.stringify({ inputs: [text], options: { wait_for_model: true } }),
+        signal: controller.signal,
+      }
+    );
+
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`❌ HF API Error (${response.status}):`, errorText);
+      throw new Error(`HF error: ${response.status} ${errorText}`);
     }
-  );
 
-  if (!response.ok) {
-    throw new Error(`HF error: ${await response.text()}`);
+    const result = await response.json();
+    if (!Array.isArray(result) || result.length === 0) {
+      throw new Error("Invalid response format from Hugging Face");
+    }
+    return result[0];
+  } catch (err: any) {
+    clearTimeout(timeout);
+    if (err.name === "AbortError") {
+      throw new Error("Hugging Face API timed out after 15s");
+    }
+    throw err;
   }
-
-  const result = await response.json();
-  return result[0];
 }
 
 export async function getEmbedding(text: string, retries = 2): Promise<number[]> {
