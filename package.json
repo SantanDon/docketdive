@@ -13,6 +13,8 @@
     "test-scraper": "tsx scripts/testSafliiScraper.ts",
     "ingest": "tsx scripts/ingest-folder.ts",
     "ingest-legislation": "tsx scripts/ingest-legislation.ts",
+    "download-legislation": "tsx scripts/download-legislation.ts",
+    "verify-legislation": "tsx scripts/verify-legislation.ts",
     "scrape-acts": "tsx scripts/scrape-acts.ts",
     "scrape-scielo": "tsx scripts/scrape-scielo.ts",
     "test:e2e": "playwright test",
