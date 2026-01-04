@@ -147,22 +147,14 @@ export async function buildMemoryContext(
 ): Promise<MemoryContext> {
   const recentMessages = messages.slice(-MAX_RECENT_MESSAGES);
   
-  // AGGRESSIVE SPEED OPTIMIZATION: Skip memory for most queries
-  // Only use memory for very long conversations with complex queries
-  const isComplexQuery = currentQuery.length > 100 && messages.length > 10;
+  // FIXED: Always include recent messages for context continuity
+  // Only skip expensive vector memory retrieval for simple queries
+  const shouldRetrieveVectorMemory = currentQuery.length > 50 && messages.length > 5;
   
-  if (!isComplexQuery) {
-    // Skip expensive memory operations for 95% of queries
-    return {
-      recentMessages,
-      relevantHistory: [],
-    };
-  }
-  
-  // Only for very complex, long conversations
   let relevantHistory: ConversationMemory[] = [];
   
-  if (db) {
+  // Only do expensive vector memory retrieval for complex queries
+  if (shouldRetrieveVectorMemory && db) {
     try {
       const queryEmbedding = await generateMessageEmbedding(currentQuery);
       relevantHistory = await retrieveRelevantMemory(
@@ -177,10 +169,29 @@ export async function buildMemoryContext(
     }
   }
 
-  return {
+  // Generate summary for very long conversations
+  let conversationSummary: string | undefined = undefined;
+  if (messages.length > SUMMARIZATION_THRESHOLD) {
+    try {
+      const summary = await summarizeConversation(messages);
+      if (summary) {
+        conversationSummary = summary;
+      }
+    } catch (error) {
+      console.error("Summarization error:", error);
+    }
+  }
+
+  const result: MemoryContext = {
     recentMessages,
     relevantHistory,
   };
+  
+  if (conversationSummary) {
+    result.conversationSummary = conversationSummary;
+  }
+
+  return result;
 }
 
 export function formatMemoryContextForPrompt(memoryContext: MemoryContext): string {
@@ -230,15 +241,16 @@ export async function initializeMemoryCollection(): Promise<void> {
       // If collection exists with wrong dimensions, we need to recreate it
       // This is a one-time migration fix
       try {
-        // Test insert to check dimensions
+        // Test insert to check dimensions - use upsert pattern to avoid duplicate errors
+        const testId = 'dimension-test-' + Date.now();
         const testEmbedding = new Array(1024).fill(0);
         await db.collection(MEMORY_COLLECTION).insertOne({
-          _id: 'dimension-test',
+          _id: testId,
           $vector: testEmbedding,
           _test: true
         });
         // Clean up test document
-        await db.collection(MEMORY_COLLECTION).deleteOne({ _id: 'dimension-test' });
+        await db.collection(MEMORY_COLLECTION).deleteOne({ _id: testId });
         console.log(`✅ Memory collection dimensions verified (1024)`);
       } catch (dimError: any) {
         if (dimError.message?.includes('dimension') || dimError.message?.includes('vector')) {

@@ -42,7 +42,7 @@ export const SpotlightCard = ({
       whileHover={{ y: -5 }}
       transition={{ type: "spring", stiffness: 300, damping: 20 }}
       className={cn(
-        "relative overflow-hidden rounded-xl border border-neutral-800 bg-neutral-900 text-neutral-200",
+        "relative overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/90 text-slate-900 dark:text-slate-100",
         className
       )}
     >

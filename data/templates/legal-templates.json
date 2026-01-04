@@ -1,0 +1,190 @@
+{
+  "templates": [
+    {
+      "id": "letter_of_demand",
+      "name": "Letter of Demand",
+      "documentType": "letter_of_demand",
+      "description": "Formal demand for payment or action before legal proceedings",
+      "structure": [
+        { "section": "header", "label": "Letterhead & Date", "required": true },
+        { "section": "recipient", "label": "Recipient Details", "required": true },
+        { "section": "reference", "label": "Reference/Matter", "required": true },
+        { "section": "introduction", "label": "Introduction", "required": true },
+        { "section": "background", "label": "Background Facts", "required": true },
+        { "section": "demand", "label": "Specific Demand", "required": true },
+        { "section": "deadline", "label": "Deadline for Compliance", "required": true },
+        { "section": "consequences", "label": "Consequences of Non-Compliance", "required": true },
+        { "section": "closing", "label": "Closing", "required": true }
+      ],
+      "requiredFields": ["recipientName", "recipientAddress", "demandAmount", "deadline", "matterDescription"],
+      "toneVariations": {
+        "formal": "Professional and measured tone suitable for initial correspondence",
+        "aggressive": "Firm and assertive tone emphasizing legal consequences",
+        "conciliatory": "Diplomatic tone seeking amicable resolution",
+        "plain_language": "Clear, simple language accessible to non-lawyers"
+      }
+    },
+    {
+      "id": "cease_and_desist",
+      "name": "Cease and Desist Letter",
+      "documentType": "cease_and_desist",
+      "description": "Demand to stop infringing activity (IP, defamation, breach)",
+      "structure": [
+        { "section": "header", "label": "Letterhead & Date", "required": true },
+        { "section": "recipient", "label": "Recipient Details", "required": true },
+        { "section": "subject", "label": "Subject Line", "required": true },
+        { "section": "introduction", "label": "Introduction & Client Identification", "required": true },
+        { "section": "infringement", "label": "Description of Infringing Conduct", "required": true },
+        { "section": "rights", "label": "Client's Rights", "required": true },
+        { "section": "demand", "label": "Specific Demands", "required": true },
+        { "section": "deadline", "label": "Deadline", "required": true },
+        { "section": "consequences", "label": "Legal Consequences", "required": true },
+        { "section": "closing", "label": "Closing", "required": true }
+      ],
+      "requiredFields": ["clientName", "recipientName", "infringementDescription", "deadline"],
+      "toneVariations": {
+        "formal": "Professional cease and desist with clear legal basis",
+        "aggressive": "Strong warning emphasizing immediate legal action",
+        "conciliatory": "Firm but open to negotiated resolution",
+        "plain_language": "Clear explanation of the issue and required action"
+      }
+    },
+    {
+      "id": "legal_opinion",
+      "name": "Legal Opinion",
+      "documentType": "legal_opinion",
+      "description": "Formal legal advice on a specific matter",
+      "structure": [
+        { "section": "header", "label": "Memorandum Header", "required": true },
+        { "section": "question", "label": "Question Presented", "required": true },
+        { "section": "brief_answer", "label": "Brief Answer", "required": true },
+        { "section": "facts", "label": "Statement of Facts", "required": true },
+        { "section": "analysis", "label": "Legal Analysis", "required": true },
+        { "section": "conclusion", "label": "Conclusion", "required": true },
+        { "section": "recommendations", "label": "Recommendations", "required": false },
+        { "section": "disclaimer", "label": "Disclaimer", "required": true }
+      ],
+      "requiredFields": ["clientName", "matterDescription", "legalQuestion"],
+      "toneVariations": {
+        "formal": "Traditional legal memorandum format",
+        "aggressive": "Emphasizing strongest arguments for client's position",
+        "conciliatory": "Balanced analysis considering all perspectives",
+        "plain_language": "Accessible explanation for non-legal audience"
+      }
+    },
+    {
+      "id": "contract",
+      "name": "Contract/Agreement",
+      "documentType": "contract",
+      "description": "General contract template with standard clauses",
+      "structure": [
+        { "section": "title", "label": "Agreement Title", "required": true },
+        { "section": "parties", "label": "Parties", "required": true },
+        { "section": "recitals", "label": "Recitals/Background", "required": false },
+        { "section": "definitions", "label": "Definitions", "required": true },
+        { "section": "obligations", "label": "Obligations of Parties", "required": true },
+        { "section": "payment", "label": "Payment Terms", "required": false },
+        { "section": "term", "label": "Term and Termination", "required": true },
+        { "section": "warranties", "label": "Warranties and Representations", "required": true },
+        { "section": "liability", "label": "Limitation of Liability", "required": true },
+        { "section": "confidentiality", "label": "Confidentiality", "required": false },
+        { "section": "dispute", "label": "Dispute Resolution", "required": true },
+        { "section": "general", "label": "General Provisions", "required": true },
+        { "section": "signatures", "label": "Signature Block", "required": true }
+      ],
+      "requiredFields": ["party1Name", "party2Name", "contractPurpose"],
+      "toneVariations": {
+        "formal": "Standard legal contract language",
+        "aggressive": "Protective clauses favoring the drafting party",
+        "conciliatory": "Balanced terms fair to both parties",
+        "plain_language": "Plain language contract accessible to all parties"
+      }
+    },
+    {
+      "id": "pleading",
+      "name": "Court Pleading",
+      "documentType": "pleading",
+      "description": "Particulars of Claim, Notice of Motion, or similar court document",
+      "structure": [
+        { "section": "heading", "label": "Court Heading", "required": true },
+        { "section": "parties", "label": "Parties", "required": true },
+        { "section": "introduction", "label": "Introduction", "required": true },
+        { "section": "facts", "label": "Material Facts", "required": true },
+        { "section": "legal_basis", "label": "Legal Basis", "required": true },
+        { "section": "relief", "label": "Relief Sought", "required": true },
+        { "section": "prayer", "label": "Prayer", "required": true },
+        { "section": "signature", "label": "Signature & Address", "required": true }
+      ],
+      "requiredFields": ["courtName", "caseNumber", "plaintiffName", "defendantName", "causeOfAction"],
+      "toneVariations": {
+        "formal": "Standard court pleading format",
+        "aggressive": "Emphatic pleading style",
+        "conciliatory": "Measured pleading tone",
+        "plain_language": "Clear and accessible pleading"
+      }
+    },
+    {
+      "id": "motion",
+      "name": "Notice of Motion",
+      "documentType": "motion",
+      "description": "Application to court for specific relief",
+      "structure": [
+        { "section": "heading", "label": "Court Heading", "required": true },
+        { "section": "notice", "label": "Notice", "required": true },
+        { "section": "relief", "label": "Relief Sought", "required": true },
+        { "section": "grounds", "label": "Grounds", "required": true },
+        { "section": "affidavit_reference", "label": "Supporting Affidavit Reference", "required": true },
+        { "section": "signature", "label": "Signature & Address", "required": true }
+      ],
+      "requiredFields": ["courtName", "caseNumber", "applicantName", "respondentName", "reliefSought"],
+      "toneVariations": {
+        "formal": "Standard motion format",
+        "aggressive": "Urgent motion emphasizing prejudice",
+        "conciliatory": "Motion seeking practical resolution",
+        "plain_language": "Clear motion accessible to self-represented litigants"
+      }
+    }
+  ],
+  "toneProfiles": {
+    "formal": {
+      "name": "Formal",
+      "description": "Professional, measured legal language",
+      "characteristics": [
+        "Traditional legal terminology",
+        "Formal salutations and closings",
+        "Objective and balanced tone",
+        "Standard legal phrases"
+      ]
+    },
+    "aggressive": {
+      "name": "Aggressive",
+      "description": "Firm, assertive language emphasizing consequences",
+      "characteristics": [
+        "Strong, direct language",
+        "Emphasis on legal consequences",
+        "Shorter deadlines",
+        "References to litigation costs"
+      ]
+    },
+    "conciliatory": {
+      "name": "Conciliatory",
+      "description": "Diplomatic language seeking resolution",
+      "characteristics": [
+        "Collaborative language",
+        "Acknowledgment of other party's position",
+        "Emphasis on mutual benefit",
+        "Openness to negotiation"
+      ]
+    },
+    "plain_language": {
+      "name": "Plain Language",
+      "description": "Clear, accessible language for non-lawyers",
+      "characteristics": [
+        "Simple vocabulary",
+        "Short sentences",
+        "Explanations of legal terms",
+        "Practical focus"
+      ]
+    }
+  }
+}

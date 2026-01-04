@@ -1,0 +1,66 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e7]:
+      - generic [ref=e8]:
+        - link "Exit Tools" [ref=e10] [cursor=pointer]:
+          - /url: /
+          - button "Exit Tools" [ref=e11]:
+            - img
+            - generic [ref=e12]: Exit Tools
+        - generic [ref=e13]:
+          - img [ref=e15]
+          - generic [ref=e19]:
+            - generic [ref=e20]: DocketDive
+            - generic [ref=e21]: Legal Suite
+    - main [ref=e22]:
+      - generic [ref=e24]:
+        - generic [ref=e27]:
+          - img [ref=e29]
+          - generic [ref=e33]:
+            - heading "Perspective Analyzer" [level=1] [ref=e34]
+            - paragraph [ref=e35]: Analyze risks and obligations from multiple party viewpoints
+        - generic [ref=e36]:
+          - generic [ref=e37]:
+            - generic [ref=e38]:
+              - heading "Analysis Lens" [level=3] [ref=e41]
+              - generic [ref=e43]:
+                - button "Party A Provider/Seller perspective" [ref=e44]:
+                  - img [ref=e46]
+                  - generic [ref=e49]:
+                    - paragraph [ref=e50]: Party A
+                    - paragraph [ref=e51]: Provider/Seller perspective
+                - button "Party B Client/Buyer perspective" [ref=e52]:
+                  - img [ref=e54]
+                  - generic [ref=e57]:
+                    - paragraph [ref=e58]: Party B
+                    - paragraph [ref=e59]: Client/Buyer perspective
+                - button "Neutral Balanced legal analysis" [ref=e60]:
+                  - img [ref=e62]
+                  - generic [ref=e66]:
+                    - paragraph [ref=e67]: Neutral
+                    - paragraph [ref=e68]: Balanced legal analysis
+            - generic [ref=e69]:
+              - heading "Contract Source" [level=3] [ref=e72]
+              - generic [ref=e73]:
+                - generic [ref=e76] [cursor=pointer]:
+                  - img [ref=e78]
+                  - paragraph [ref=e82]: Click to upload document
+                - generic [ref=e83]: or manual entry
+                - generic [ref=e86]:
+                  - textbox "Paste agreement text here..." [active] [ref=e87]: This is a sample contract between Party A and Party B. Party A shall provide services and Party B shall pay R1000.
+                  - generic [ref=e88]: 114 Chars
+                - button "Analyze Agreement" [ref=e89]:
+                  - generic [ref=e90]:
+                    - img
+                    - text: Analyze Agreement
+          - generic [ref=e92]:
+            - img [ref=e94]
+            - heading "System Initialized" [level=3] [ref=e99]
+            - paragraph [ref=e100]: Upload your agreement or paste the text in the calibration panel to execute a multi-perspective analysis.
+  - button "Open Next.js Dev Tools" [ref=e106] [cursor=pointer]:
+    - img [ref=e107]
+  - alert [ref=e110]
+```

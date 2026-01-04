@@ -1,0 +1,249 @@
+🧪 TOOL DETECTION RELIABILITY TEST
+
+================================================================================
+
+📋 Testing: CONTRACT-ANALYSIS
+--------------------------------------------------------------------------------
+✅ "analyze this contract"
+   Detected: contract-analysis (confidence: 80%)
+
+✅ "contract analysis please"
+   Detected: contract-analysis (confidence: 95%)
+
+✅ "perspective analyzer for this agreement"
+   Detected: contract-analysis (confidence: 95%)
+
+✅ "contract analyzer"
+   Detected: contract-analysis (confidence: 95%)
+
+✅ "I need to review this agreement for risks"
+   Detected: contract-analysis (confidence: 90%)
+
+✅ "analyze the contract from party a perspective"
+   Detected: contract-analysis (confidence: 100%)
+
+✅ "what are the risks in this contract"
+   Detected: contract-analysis (confidence: 80%)
+
+✅ "review this agreement"
+   Detected: contract-analysis (confidence: 80%)
+
+✅ "can you break down this contract"
+   Detected: contract-analysis (confidence: 80%)
+
+✅ "I want to understand this agreement"
+   Detected: contract-analysis (confidence: 80%)
+
+✅ "analyze my contract"
+   Detected: contract-analysis (confidence: 80%)
+
+❌ "look at this deal"
+   Expected: contract-analysis, Got: NONE (confidence: 0%)
+
+📊 contract-analysis: 11/12 passed (91.7% accuracy)
+
+
+📋 Testing: SIMPLIFY
+--------------------------------------------------------------------------------
+✅ "simplify this document"
+   Detected: simplify (confidence: 95%)
+
+✅ "simplifier needed"
+   Detected: simplify (confidence: 95%)
+
+✅ "plain language version please"
+   Detected: simplify (confidence: 95%)
+
+✅ "remove the jargon"
+   Detected: simplify (confidence: 95%)
+
+❌ "this is too complex, make it simpler"
+   Expected: simplify, Got: NONE (confidence: 0%)
+
+✅ "explain this in plain language"
+   Detected: simplify (confidence: 95%)
+
+❌ "convert to easier words"
+   Expected: simplify, Got: NONE (confidence: 0%)
+
+❌ "what does this mean in simple terms"
+   Expected: simplify, Got: NONE (confidence: 0%)
+
+❌ "can you dumb this down"
+   Expected: simplify, Got: NONE (confidence: 0%)
+
+❌ "translate this to plain English"
+   Expected: simplify, Got: NONE (confidence: 0%)
+
+❌ "make it less legal-sounding"
+   Expected: simplify, Got: NONE (confidence: 0%)
+
+📊 simplify: 5/11 passed (45.5% accuracy)
+
+
+📋 Testing: DRAFTING
+--------------------------------------------------------------------------------
+✅ "draft a contract"
+   Detected: drafting (confidence: 95%)
+
+✅ "create a document"
+   Detected: drafting (confidence: 80%)
+
+✅ "generate a contract"
+   Detected: drafting (confidence: 95%)
+
+✅ "write a lease agreement"
+   Detected: drafting (confidence: 90%)
+
+✅ "I need to create a new agreement"
+   Detected: drafting (confidence: 80%)
+
+✅ "generate a service contract"
+   Detected: drafting (confidence: 95%)
+
+✅ "make a letter of intent"
+   Detected: drafting (confidence: 80%)
+
+✅ "help me write a contract"
+   Detected: drafting (confidence: 80%)
+
+✅ "can you create a document for me"
+   Detected: drafting (confidence: 80%)
+
+✅ "I need a new agreement drafted"
+   Detected: drafting (confidence: 85%)
+
+✅ "help write a non-disclosure agreement"
+   Detected: drafting (confidence: 80%)
+
+📊 drafting: 11/11 passed (100.0% accuracy)
+
+
+📋 Testing: AUDIT
+--------------------------------------------------------------------------------
+✅ "audit this contract"
+   Detected: audit (confidence: 95%)
+
+✅ "check for missing clauses"
+   Detected: audit (confidence: 95%)
+
+✅ "clause auditor"
+   Detected: audit (confidence: 85%)
+
+✅ "audit contract for risks"
+   Detected: audit (confidence: 95%)
+
+✅ "review for missing clauses"
+   Detected: audit (confidence: 95%)
+
+✅ "check what clauses are missing"
+   Detected: audit (confidence: 100%)
+
+✅ "is this contract missing anything"
+   Detected: audit (confidence: 80%)
+
+❌ "what am I missing in this agreement"
+   Expected: audit, Got: NONE (confidence: 0%)
+
+✅ "check this for problems"
+   Detected: audit (confidence: 80%)
+
+✅ "review for gaps"
+   Detected: audit (confidence: 80%)
+
+✅ "are there missing provisions"
+   Detected: audit (confidence: 80%)
+
+📊 audit: 10/11 passed (90.9% accuracy)
+
+
+📋 Testing: POPIA
+--------------------------------------------------------------------------------
+✅ "check popia compliance"
+   Detected: popia (confidence: 95%)
+
+✅ "popia checker"
+   Detected: popia (confidence: 95%)
+
+✅ "data protection review"
+   Detected: popia (confidence: 95%)
+
+✅ "privacy compliance check"
+   Detected: popia (confidence: 95%)
+
+✅ "is this compliant with data protection laws"
+   Detected: popia (confidence: 95%)
+
+✅ "check gdpr compliance"
+   Detected: popia (confidence: 95%)
+
+✅ "review for privacy issues"
+   Detected: popia (confidence: 95%)
+
+✅ "does this meet privacy requirements"
+   Detected: popia (confidence: 95%)
+
+❌ "is this compliant"
+   Expected: popia, Got: NONE (confidence: 0%)
+
+✅ "check for data protection issues"
+   Detected: popia (confidence: 95%)
+
+✅ "does this comply with popia"
+   Detected: popia (confidence: 95%)
+
+📊 popia: 10/11 passed (90.9% accuracy)
+
+
+📋 Testing: COMPARE
+--------------------------------------------------------------------------------
+✅ "compare these documents"
+   Detected: compare (confidence: 95%)
+
+✅ "document compare"
+   Detected: compare (confidence: 95%)
+
+✅ "show the differences"
+   Detected: compare (confidence: 85%)
+
+✅ "diff these versions"
+   Detected: compare (confidence: 95%)
+
+✅ "what's different between these"
+   Detected: compare (confidence: 85%)
+
+✅ "compare the two versions"
+   Detected: compare (confidence: 95%)
+
+❌ "show me the changes"
+   Expected: compare, Got: NONE (confidence: 0%)
+
+✅ "what changed in the new version"
+   Detected: compare (confidence: 95%)
+
+✅ "compare this to the old contract"
+   Detected: compare (confidence: 95%)
+
+✅ "show differences"
+   Detected: compare (confidence: 85%)
+
+✅ "what's new in this version"
+   Detected: compare (confidence: 95%)
+
+📊 compare: 10/11 passed (90.9% accuracy)
+
+================================================================================
+
+📊 SUMMARY
+
+contract-analysis    [██████░] 92% (11/12)
+simplify             [███░░░] 45% (5/11)
+drafting             [██████] 100% (11/11)
+audit                [█████░] 91% (10/11)
+popia                [█████░] 91% (10/11)
+compare              [█████░] 91% (10/11)
+
+🎯 Overall Accuracy: 85.1% (57/67)
+
+✨ Tool detection is RELIABLE
+

@@ -18,23 +18,28 @@ console.log(`📡 RAG Initialization:
 `);
 
 // ========================= CONFIG =========================
+// Detect production environment early for config decisions
+const IS_PRODUCTION = process.env.NODE_ENV === "production" || process.env.VERCEL === "1";
+
 export const OLLAMA_BASE_URL = (process.env.OLLAMA_BASE_URL || "http://localhost:11434").trim();
 export const EMBED_MODEL = (process.env.EMBED_MODEL || "dengcao/Qwen3-Embedding-0.6B:Q8_0").trim();
 export const CHAT_MODEL = (process.env.CHAT_MODEL || "qwen-ultra-fast:latest").trim();
 export const COLLECTION_NAME = (process.env.COLLECTION_NAME || "docketdive").trim();
 export const EXPECTED_DIMENSIONS = 1024;
 export const GROQ_API_KEY = process.env.GROQ_API_KEY?.trim();
-export const GROQ_MODEL = "llama-3.3-70b-versatile";
+// Use faster model in production for lower latency
+export const GROQ_MODEL = IS_PRODUCTION ? "llama-3.1-8b-instant" : "llama-3.3-70b-versatile";
 
 // Cloud Embedding Configuration
 export const HUGGINGFACE_API_KEY = process.env.HUGGINGFACE_API_KEY?.trim();
-export const HF_EMBED_MODEL = "intfloat/multilingual-e5-large"; 
+export const HF_EMBED_MODEL = "intfloat/multilingual-e5-large";
 
-// BALANCED: Speed + Accuracy optimized thresholds
-export const TOP_K = 8;  // Reduced for faster analysis (was 12)
-export const MIN_SIMILARITY_THRESHOLD = 0.22;  // Raised for better precision (was 0.18)
-export const MAX_SOURCES_IN_CONTEXT = 4;  // Reduced to speed up LLM synthesis (was 6)
+// PRODUCTION OPTIMIZED: Speed-focused thresholds
+export const TOP_K = IS_PRODUCTION ? 5 : 8;  // Fewer results in prod for speed
+export const MIN_SIMILARITY_THRESHOLD = 0.25;  // Higher threshold for faster filtering
+export const MAX_SOURCES_IN_CONTEXT = IS_PRODUCTION ? 3 : 4;  // Fewer sources = faster LLM
 export const KEYWORD_GATE_ENABLED = false;
+export const SKIP_QUERY_EXPANSION_IN_PROD = true;  // Skip expansion for faster response
 
 // ========================= CLIENTS =========================
 export let db: any = null;
@@ -349,81 +354,74 @@ export async function retrieveRelevantDocuments(query: string, conversationConte
       }
     }
     
-    // BALANCED: Query expansion for better recall
-    // Expand for most queries except very short ones
-    const shouldExpand = enrichedQuery.length > 20;
+    // PRODUCTION: Skip query expansion for speed, use only in dev for better recall
+    const shouldExpand = !IS_PRODUCTION && !SKIP_QUERY_EXPANSION_IN_PROD && enrichedQuery.length > 20;
     
     // Launch identification promise
     const entitiesPromise = Promise.resolve(identifyLegalEntities(enrichedQuery));
 
-    // 2. Launch initial expansion and FIRST Parallel Search (Original Query)
-    console.time("⏱️ Concurrent Retrieval");
+    // 2. Launch initial expansion AND original query embedding in parallel
+    console.time("⏱️ Pipelined Retrieval Start");
     const expansionPromise = shouldExpand ? expandQuery(enrichedQuery) : Promise.resolve([enrichedQuery]);
-    
-    // We launch the search for the ORIGINAL query immediately without waiting for expansion
     const originalQueryEmbeddingPromise = getEmbedding(enrichedQuery);
+
+    // Wait for ORIGINAL query embedding first (fastest)
+    const originalVector = await originalQueryEmbeddingPromise;
     
-    // Process search as soon as possible
-    const [expandedQueries, originalVector, entities] = await Promise.all([
+    // Launch ORIGINAL database search IMMEDIATELY
+    const originalSearchPromise = (async () => {
+      if (!originalVector || originalVector.length === 0) return [];
+      return await collection.find({}, {
+        sort: { $vector: originalVector },
+        limit: TOP_K,
+        includeSimilarity: true,
+        projection: { content: 1, metadata: 1 },
+      }).toArray();
+    })();
+
+    // While original search is running, wait for expansion results
+    const [expandedQueries, entities] = await Promise.all([
       expansionPromise,
-      originalQueryEmbeddingPromise,
       entitiesPromise
     ]);
     
     console.log(`📝 Query expansion: ${shouldExpand ? 'enabled' : 'skipped'} (${expandedQueries.length} queries)`);
-    console.log(`🏷️ Identified entities:`, entities);
     
     const allResults: any[] = [];
     
-    if (!collection) {
-      console.warn("⚠️ Retrieval skipped: Astra DB collection not initialized.");
-      return [];
-    }
-
-    // 3. Batch generate embeddings for the REST (the expanded ones)
+    // Launch expanded query embeddings in a BATCH
     const expansionQueries = expandedQueries.filter(q => q !== enrichedQuery);
     const expansionVectorsPromise = expansionQueries.length > 0 
       ? getEmbeddings(expansionQueries) 
       : Promise.resolve([]);
 
-    // 4. Parallel search for expanded results
     const expansionVectors = await expansionVectorsPromise;
     
-    const queryPromises = [
-      // Original query results
-      (async () => {
-        if (!originalVector || originalVector.length === 0) return [];
-        return await collection.find({}, {
-          sort: { $vector: originalVector },
-          limit: TOP_K,
-          includeSimilarity: true,
-          projection: { content: 1, metadata: 1 },
-        }).toArray();
-      })()
-    ];
+    // Launch expansion database searches concurrently
+    const expansionSearchPromises = expansionQueries.map((q, idx) => (async () => {
+      const vector = expansionVectors[idx];
+      if (!vector || vector.length === 0) return [];
+      const limit = Math.ceil(TOP_K * 0.5);
+      return await collection.find({}, {
+        sort: { $vector: vector },
+        limit: limit,
+        includeSimilarity: true,
+        projection: { content: 1, metadata: 1 },
+      }).toArray();
+    })());
 
-    // Add expansion search promises
-    expansionQueries.forEach((q, idx) => {
-      queryPromises.push((async () => {
-        const vector = expansionVectors[idx];
-        if (!vector || vector.length === 0) return [];
-        const limit = Math.ceil(TOP_K * 0.5);
-        return await collection.find({}, {
-          sort: { $vector: vector },
-          limit: limit,
-          includeSimilarity: true,
-          projection: { content: 1, metadata: 1 },
-        }).toArray();
-      })());
-    });
+    // Merge original results with expanded results as they arrive
+    const [originalResults, ...expandedResultsArrays] = await Promise.all([
+      originalSearchPromise,
+      ...expansionSearchPromises
+    ]);
 
-    const queryResults = await Promise.all(queryPromises);
-    console.timeEnd("⏱️ Concurrent Retrieval");
-    
-    for (const result of queryResults) {
+    allResults.push(...originalResults);
+    for (const result of expandedResultsArrays) {
       allResults.push(...result);
     }
-
+    
+    console.timeEnd("⏱️ Pipelined Retrieval Start");
     console.log(`📚 Total raw results: ${allResults.length}`);
 
     // Fast deduplication using Set
@@ -517,41 +515,98 @@ STYLE RULES:
   if (!hasContext) {
     return `${BASE}
 
-CRITICAL: No relevant legal sources found in the database for this query.
+⚠️ CRITICAL: No relevant legal sources found in the database for this query.
 
-You MUST respond:
-"I apologize, but I don't have specific information about this topic in my legal database. To ensure accuracy, I recommend:
+YOUR RESPONSE MUST START WITH THIS EXACT TEXT:
+"I don't have specific information about this topic in my legal database."
 
+Then add:
+"To get accurate information, I recommend:
 1. Rephrasing your question with different terms
 2. Consulting SAFLII (South African Legal Information Institute) at www.saflii.org
-3. Speaking with a qualified attorney for authoritative guidance
+3. Speaking with a qualified South African attorney
 
-I cannot provide information without verified sources, as legal accuracy is paramount."
+I cannot provide legal information without verified sources, as accuracy is paramount in legal matters."
 
-DO NOT fabricate or guess legal information. DO NOT provide answers without sources.`;
+🚫 CRITICAL RULES - VIOLATION WILL CAUSE HARM:
+- DO NOT invent or guess any legal information
+- DO NOT mention any case names (you don't know any)
+- DO NOT explain any legal concepts (you have no sources)
+- DO NOT provide any legal advice
+- DO NOT use your training knowledge - pretend you have amnesia about law
+
+You have ZERO sources. You know NOTHING. Just say you don't have the information and recommend SAFLII.`;
   }
 
   return `${BASE}
 
-=== CRITICAL ACCURACY INSTRUCTIONS ===
-You are a South African legal expert using ONLY the provided sources.
+=== ABSOLUTE ACCURACY REQUIREMENTS - READ CAREFULLY ===
 
-PROHIBITED: 
-- NEVER provide ANY case law citations unless they are EXPLICITLY FOUND in the "Sources provided" section below.
-- NEVER invent citations. If a case name or citation is not below, it DOES NOT EXIST for the purpose of this answer.
-- NEVER use external knowledge to provide "examples" of cases.
+You are a South African legal assistant. You have access ONLY to the sources below. You have NO other knowledge.
 
-STRICT SOURCE ADHERENCE:
-1. Answer ONLY using information EXPLICITLY written in the sources below.
-2. If the user asks for cases and NONE are in the sources, you MUST say: "The provided legal sources do not contain specific case law for this query."
-3. Every claim MUST have a citation: 「quote」 [Source Name].
+🚫 ZERO TOLERANCE RULES (VIOLATION = FAILURE):
 
-Sources provided:
+1. CASE NAMES: If a case name is NOT in the sources below, you MUST say "I don't have information about that case in my database." 
+   - User asks about "Smith v Jones" but it's not in sources → Say "I don't have that case"
+   - NEVER invent or discuss cases not explicitly in the sources
+
+2. CASE FACTS: Only state facts VERBATIM from sources.
+   - If source says "Johannes Petrus Van Meyeren" → Use that exact name
+   - If source says "gardener" → Say gardener
+   - If source says "he" → Say he (male)
+   - If user says "was the plaintiff a woman?" but source says "he" → CORRECT THEM: "No, the plaintiff was male"
+   - NEVER agree with user's wrong assumptions
+
+3. LEGAL CONCEPTS: If a legal concept is NOT in sources, say "I don't have information about that concept."
+   - User asks about "actio de felinus" but it's not real → Say "I don't have information about that doctrine"
+   - NEVER invent or explain concepts not in sources
+
+4. COURTS: Only mention courts EXPLICITLY stated in sources.
+   - If source says "Western Cape High Court" → Use that exact court
+   - If user says "Constitutional Court" but source says "High Court" → CORRECT THEM
+
+5. DATES/YEARS: Only use dates EXPLICITLY in sources.
+   - If source says "2020" → Use 2020
+   - If user says "2015" but source says "2020" → CORRECT THEM: "Actually, the case is from 2020"
+
+6. WHEN USER ASKS ABOUT SOMETHING NOT IN SOURCES:
+   Say: "I don't have specific information about [topic] in my legal database. The sources I have access to cover [briefly list what IS in sources]. For information about [topic], I recommend consulting SAFLII.org or a qualified attorney."
+
+7. NEVER HALLUCINATE:
+   - Don't invent damages amounts
+   - Don't invent party details
+   - Don't invent holdings
+   - Don't invent citations
+   - If you're not 100% certain it's in the sources, DON'T SAY IT
+
+⚠️ CRITICAL: ALWAYS CORRECT USER MISTAKES - EXAMPLES:
+
+Example 1 - WRONG ANIMAL:
+User: "What breed was the cat that attacked the plaintiff?"
+Sources say: "Boerboel dog named Max"
+CORRECT RESPONSE: "I need to correct a detail in your question - it was not a cat. According to my sources, the animal was a Boerboel dog named 'Max' that attacked the plaintiff."
+WRONG RESPONSE: "The cat that attacked..." (NEVER accept wrong premises)
+
+Example 2 - WRONG COURT:
+User: "What did the Constitutional Court decide in Van Meyeren v Cloete?"
+Sources say: "Western Cape High Court"
+CORRECT RESPONSE: "I need to clarify - Van Meyeren v Cloete was decided by the Western Cape High Court, not the Constitutional Court. The court held that..."
+WRONG RESPONSE: "The Constitutional Court decided..." (NEVER accept wrong court)
+
+Example 3 - WRONG YEAR:
+User: "Tell me about Van Meyeren v Cloete from 2015"
+Sources say: "2020"
+CORRECT RESPONSE: "I need to correct the year - Van Meyeren v Cloete is from 2020, not 2015. In this case..."
+WRONG RESPONSE: "In 2015, the court..." (NEVER accept wrong dates)
+
+RULE: If the user's question contains ANY factual error about a case in your sources, you MUST correct it FIRST before answering.
+
+Sources provided (THIS IS YOUR ONLY KNOWLEDGE):
 ----------------
 {INJECTED_CONTEXT}
 ----------------
 
-FINAL COMMAND: DO NOT MENTION ANY CASE PROUDLY OR OTHERWISE IF IT IS NOT IN THE SOURCES ABOVE. ACCURACY IS LIFE-OR-DEATH.
+REMEMBER: If it's not in the sources above, you don't know it. Say "I don't have that information" rather than guess.
 `;
 }
 
@@ -584,6 +639,77 @@ export function enforceCitations(response: string, sources: any[]): string {
   }
 
   return fixed;
+}
+
+// ========================= HALLUCINATION DETECTOR =========================
+/**
+ * Detects potential hallucinations by checking if case names in response exist in sources
+ */
+export function detectHallucinations(response: string, sources: any[], query: string): { 
+  hasHallucination: boolean; 
+  warnings: string[];
+  cleanedResponse: string;
+} {
+  const warnings: string[] = [];
+  let cleanedResponse = response;
+  
+  // Extract case names from sources
+  const sourceCaseNames = new Set<string>();
+  const sourceContent = sources.map(s => (s.content || '').toLowerCase()).join(' ');
+  
+  sources.forEach(s => {
+    const title = s.metadata?.title || '';
+    if (title && title.includes(' v ')) {
+      sourceCaseNames.add(title.toLowerCase());
+    }
+  });
+  
+  // Find case citations in response (pattern: "Name v Name" or "Name v. Name")
+  const casePattern = /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+v\.?\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/g;
+  const responseCases = [...response.matchAll(casePattern)];
+  
+  for (const match of responseCases) {
+    const caseName = match[0].toLowerCase().replace(/\./g, '');
+    const caseNameNormalized = caseName.replace(/\s+v\s+/, ' v ');
+    
+    // Check if this case exists in sources
+    let foundInSources = false;
+    for (const sourceName of sourceCaseNames) {
+      if (sourceName.includes(caseNameNormalized) || caseNameNormalized.includes(sourceName)) {
+        foundInSources = true;
+        break;
+      }
+    }
+    
+    // Also check if case name appears in source content
+    if (!foundInSources && sourceContent.includes(caseNameNormalized)) {
+      foundInSources = true;
+    }
+    
+    if (!foundInSources) {
+      warnings.push(`Potential hallucination: Case "${match[0]}" not found in sources`);
+    }
+  }
+  
+  // Check for fake legal concepts (common hallucination patterns)
+  const fakeConcepts = [
+    'actio de felinus',
+    'actio de caninus', 
+    'actio de bovinus',
+    'actio de equinus',
+  ];
+  
+  for (const concept of fakeConcepts) {
+    if (response.toLowerCase().includes(concept)) {
+      warnings.push(`Potential hallucination: Fake legal concept "${concept}" detected`);
+    }
+  }
+  
+  return {
+    hasHallucination: warnings.length > 0,
+    warnings,
+    cleanedResponse
+  };
 }
 
 // ========================= DISCLAIMER ADDER =========================
@@ -690,52 +816,102 @@ export function cleanThinkingOutput(response: string): string {
 }
 
 // ========================= RESPONSE GENERATION =========================
-export async function generateResponse(query: string, context: string, hasContext: boolean, provider: "ollama" | "groq" = "ollama", systemPromptOverride?: string) {
+export async function generateResponse(
+  query: string, 
+  context: string, 
+  hasContext: boolean, 
+  provider: "ollama" | "groq" = "ollama", 
+  systemPromptOverride?: string
+) {
+  // Synchronous version for simple calls
   const currentDate = format(new Date(), "MMMM d, yyyy");
   const systemPrompt = getSystemPrompt(hasContext, currentDate);
   const finalPrompt = systemPromptOverride || (hasContext ? systemPrompt.replace("{INJECTED_CONTEXT}", context) : systemPrompt);
 
   const isProduction = process.env.NODE_ENV === "production" || process.env.VERCEL === "1";
+  const effectiveProvider = (isProduction && GROQ_API_KEY) ? "groq" : provider;
   let chatModel;
 
-  // In production, strictly prefer Groq if key is available
-  const effectiveProvider = (isProduction && GROQ_API_KEY) ? "groq" : provider;
-
   if (effectiveProvider === "groq" && GROQ_API_KEY) {
-    if (isProduction) console.log(`☁️ Using Production AI (Groq)`);
     chatModel = new ChatGroq({
       apiKey: GROQ_API_KEY,
       model: GROQ_MODEL,
-      temperature: 0.05,
-      maxTokens: 3000, // Balanced for quality
+      temperature: 0,  // Zero temperature for maximum accuracy - no creativity
+      maxTokens: 3000,
     });
   } else {
-    if (isProduction) console.warn("⚠️ Falling back to local AI in production - this may fail (Ollama)");
     chatModel = new ChatOllama({
       baseUrl: OLLAMA_BASE_URL,
       model: CHAT_MODEL,
       temperature: 0.05,
-      topP: 0.9, // Restored for better quality
-      topK: 30, // Restored for better sampling
-      repeatPenalty: 1.15, // Balanced
-      numCtx: 6144, // Restored for better context
-      numPredict: 3000, // Restored for complete answers
+      numCtx: 6144,
+      numPredict: 3000,
     });
   }
 
-  const raw = await Promise.race([
+  const response = await Promise.race([
     chatModel.invoke([
       { role: "system", content: finalPrompt },
       { role: "user", content: query },
     ]),
-    new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 60000)) // Reduced from 120s to 60s
+    new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 60000))
   ]) as any;
 
-  const rawResponse = typeof raw.content === "string"
-    ? raw.content
-    : raw.content?.map((c: any) => c.text || "").join("");
+  const rawResponse = typeof response.content === "string"
+    ? response.content
+    : response.content?.map((c: any) => c.text || "").join("");
 
   return cleanThinkingOutput(rawResponse);
+}
+
+/**
+ * Streaming Response Generation
+ */
+export async function* generateResponseStream(
+  query: string,
+  context: string,
+  hasContext: boolean,
+  provider: "ollama" | "groq" = "ollama",
+  systemPromptOverride?: string
+) {
+  const currentDate = format(new Date(), "MMMM d, yyyy");
+  const systemPrompt = getSystemPrompt(hasContext, currentDate);
+  const finalPrompt = systemPromptOverride || (hasContext ? systemPrompt.replace("{INJECTED_CONTEXT}", context) : systemPrompt);
+
+  const isProduction = process.env.NODE_ENV === "production" || process.env.VERCEL === "1";
+  const effectiveProvider = (isProduction && GROQ_API_KEY) ? "groq" : provider;
+  let chatModel;
+
+  if (effectiveProvider === "groq" && GROQ_API_KEY) {
+    chatModel = new ChatGroq({
+      apiKey: GROQ_API_KEY,
+      model: GROQ_MODEL,
+      temperature: 0,  // Zero temperature for maximum accuracy
+      maxTokens: 3000,
+      streaming: true,
+    });
+  } else {
+    chatModel = new ChatOllama({
+      baseUrl: OLLAMA_BASE_URL,
+      model: CHAT_MODEL,
+      temperature: 0.05,
+      numCtx: 6144,
+      numPredict: 3000,
+    });
+  }
+
+  const stream = await chatModel.stream([
+    { role: "system", content: finalPrompt },
+    { role: "user", content: query },
+  ]);
+
+  for await (const chunk of stream) {
+    const text = typeof chunk.content === "string" 
+      ? chunk.content 
+      : chunk.content?.map((c: any) => c.text || "").join("") || "";
+    
+    if (text) yield text;
+  }
 }
 
 // ========================= HEALTH CHECK =========================

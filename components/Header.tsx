@@ -45,12 +45,17 @@ export default function Header({ sidebarOpen, setSidebarOpen, isMobile }: Header
         )}
 
         <div className="font-bold text-lg flex items-center tracking-tight">
-          <div className="bg-gradient-to-br from-legal-blue-600 to-cyan-600 text-white p-1.5 rounded-lg mr-2 shadow-sm">
-            <Scale className="h-4 w-4" />
+          <div className="bg-gradient-to-br from-blue-600 to-indigo-600 text-white p-2 rounded-xl mr-3 shadow-lg shadow-blue-500/20">
+            <Scale className="h-5 w-5" />
           </div>
-          <span className="bg-clip-text text-transparent bg-gradient-to-r from-legal-blue-700 to-cyan-600 dark:from-legal-blue-400 dark:to-cyan-400">
-            DocketDive
-          </span>
+          <div className="flex flex-col">
+            <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-700 to-indigo-600 dark:from-blue-400 dark:to-indigo-400 text-lg font-black">
+              DocketDive
+            </span>
+            <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider -mt-1">
+              Legal Suite
+            </span>
+          </div>
         </div>
       </div>
 

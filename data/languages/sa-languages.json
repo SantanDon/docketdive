@@ -1,0 +1,231 @@
+{
+  "officialLanguages": [
+    {
+      "code": "en",
+      "name": "English",
+      "nativeName": "English",
+      "isDefault": true,
+      "legalTerminology": true
+    },
+    {
+      "code": "af",
+      "name": "Afrikaans",
+      "nativeName": "Afrikaans",
+      "isDefault": false,
+      "legalTerminology": true
+    },
+    {
+      "code": "zu",
+      "name": "Zulu",
+      "nativeName": "isiZulu",
+      "isDefault": false,
+      "legalTerminology": false
+    },
+    {
+      "code": "xh",
+      "name": "Xhosa",
+      "nativeName": "isiXhosa",
+      "isDefault": false,
+      "legalTerminology": false
+    },
+    {
+      "code": "st",
+      "name": "Sotho",
+      "nativeName": "Sesotho",
+      "isDefault": false,
+      "legalTerminology": false
+    },
+    {
+      "code": "nso",
+      "name": "Northern Sotho",
+      "nativeName": "Sepedi",
+      "isDefault": false,
+      "legalTerminology": false
+    },
+    {
+      "code": "tn",
+      "name": "Tswana",
+      "nativeName": "Setswana",
+      "isDefault": false,
+      "legalTerminology": false
+    },
+    {
+      "code": "ts",
+      "name": "Tsonga",
+      "nativeName": "Xitsonga",
+      "isDefault": false,
+      "legalTerminology": false
+    },
+    {
+      "code": "ss",
+      "name": "Swati",
+      "nativeName": "siSwati",
+      "isDefault": false,
+      "legalTerminology": false
+    },
+    {
+      "code": "ve",
+      "name": "Venda",
+      "nativeName": "Tshivenda",
+      "isDefault": false,
+      "legalTerminology": false
+    },
+    {
+      "code": "nr",
+      "name": "Ndebele",
+      "nativeName": "isiNdebele",
+      "isDefault": false,
+      "legalTerminology": false
+    }
+  ],
+  "legalGlossary": {
+    "description": "Common legal terms with translations",
+    "terms": [
+      {
+        "english": "contract",
+        "afrikaans": "kontrak",
+        "zulu": "isivumelwano",
+        "xhosa": "isivumelwano"
+      },
+      {
+        "english": "court",
+        "afrikaans": "hof",
+        "zulu": "inkantolo",
+        "xhosa": "inkundla"
+      },
+      {
+        "english": "judge",
+        "afrikaans": "regter",
+        "zulu": "ijaji",
+        "xhosa": "ijaji"
+      },
+      {
+        "english": "lawyer",
+        "afrikaans": "prokureur",
+        "zulu": "ummeli",
+        "xhosa": "igqwetha"
+      },
+      {
+        "english": "rights",
+        "afrikaans": "regte",
+        "zulu": "amalungelo",
+        "xhosa": "amalungelo"
+      },
+      {
+        "english": "constitution",
+        "afrikaans": "grondwet",
+        "zulu": "umthethosisekelo",
+        "xhosa": "umgaqo-siseko"
+      },
+      {
+        "english": "witness",
+        "afrikaans": "getuie",
+        "zulu": "ufakazi",
+        "xhosa": "ingqina"
+      },
+      {
+        "english": "evidence",
+        "afrikaans": "getuienis",
+        "zulu": "ubufakazi",
+        "xhosa": "ubungqina"
+      },
+      {
+        "english": "plaintiff",
+        "afrikaans": "eiser",
+        "zulu": "ummangali",
+        "xhosa": "ummangali"
+      },
+      {
+        "english": "defendant",
+        "afrikaans": "verweerder",
+        "zulu": "ummangalelwa",
+        "xhosa": "ummangalelwa"
+      },
+      {
+        "english": "bail",
+        "afrikaans": "borgtog",
+        "zulu": "ibheyili",
+        "xhosa": "ibheyile"
+      },
+      {
+        "english": "sentence",
+        "afrikaans": "vonnis",
+        "zulu": "isigwebo",
+        "xhosa": "isigwebo"
+      },
+      {
+        "english": "appeal",
+        "afrikaans": "appèl",
+        "zulu": "isicelo sokubuyekezwa",
+        "xhosa": "isibheno"
+      },
+      {
+        "english": "divorce",
+        "afrikaans": "egskeiding",
+        "zulu": "isehlukaniso",
+        "xhosa": "uqhawulo-mtshato"
+      },
+      {
+        "english": "custody",
+        "afrikaans": "toesig",
+        "zulu": "ukugcinwa",
+        "xhosa": "ukugcinwa"
+      },
+      {
+        "english": "maintenance",
+        "afrikaans": "onderhoud",
+        "zulu": "ukondliwa",
+        "xhosa": "ukondliwa"
+      },
+      {
+        "english": "will/testament",
+        "afrikaans": "testament",
+        "zulu": "incwadi yefa",
+        "xhosa": "incwadi yelifa"
+      },
+      {
+        "english": "inheritance",
+        "afrikaans": "erfenis",
+        "zulu": "ifa",
+        "xhosa": "ilifa"
+      },
+      {
+        "english": "property",
+        "afrikaans": "eiendom",
+        "zulu": "impahla",
+        "xhosa": "ipropati"
+      },
+      {
+        "english": "tenant",
+        "afrikaans": "huurder",
+        "zulu": "umqashi",
+        "xhosa": "umqeshi"
+      },
+      {
+        "english": "landlord",
+        "afrikaans": "verhuurder",
+        "zulu": "umnikazi wendlu",
+        "xhosa": "umnikazi wendlu"
+      },
+      {
+        "english": "eviction",
+        "afrikaans": "uitsetting",
+        "zulu": "ukuxoshwa",
+        "xhosa": "ukugxothwa"
+      }
+    ]
+  },
+  "responseLanguagePrompts": {
+    "en": "Respond in English.",
+    "af": "Antwoord in Afrikaans. Gebruik duidelike, eenvoudige taal.",
+    "zu": "Phendula ngesiZulu. Sebenzisa ulimi olucacile nolula.",
+    "xh": "Phendula ngesiXhosa. Sebenzisa ulwimi olucacileyo nolula.",
+    "st": "Araba ka Sesotho. Sebedisa puo e hlakileng le e bonolo.",
+    "nso": "Araba ka Sepedi. Šomiša polelo ye e hlwekilego le ye bonolo.",
+    "tn": "Araba ka Setswana. Dirisa puo e e tlhamaletseng le e bonolo.",
+    "ts": "Hlamula hi Xitsonga. Tirhisa ririmi leri nga erivaleni na leri olova.",
+    "ss": "Phendvula ngesiSwati. Sebentisa lulwimi lolukhanyako nalolula.",
+    "ve": "Fhindula nga Tshivenda. Shumisa luambo lwo khwaṱhisedzwaho na lwo leluwaho.",
+    "nr": "Phendula ngesiNdebele. Sebenzisa ilimi elicacileko nelibulapha."
+  }
+}

@@ -42,6 +42,48 @@ const SA_COURTS = [
   { name: "Labour Appeal Court", url: "/za/cases/ZALAC/" },
 ];
 
+// Labour Law specific keywords for enhanced filtering
+const LABOUR_LAW_KEYWORDS = [
+  "dismissal",
+  "unfair dismissal",
+  "employment contract",
+  "restraint of trade",
+  "constructive dismissal",
+  "severance",
+  "retrenchment",
+  "misconduct",
+  "sick leave",
+  "maternity leave",
+  "non-compete",
+  "bonus",
+  "wage dispute",
+  "working hours",
+  "discrimination",
+  "harassment",
+  "unfair labour practice"
+];
+
+// Contract Law keywords for high court cases
+const CONTRACT_LAW_KEYWORDS = [
+  "contract",
+  "breach",
+  "damages",
+  "performance",
+  "novation",
+  "rescission",
+  "specific performance",
+  "force majeure",
+  "sale of goods",
+  "supply agreement",
+  "service agreement",
+  "loan agreement",
+  "mandate",
+  "warranty",
+  "indemnity",
+  "defects liability",
+  "payment terms"
+];
+
 // ========================= DATABASE SETUP =========================
 const client = new DataAPIClient(process.env.ASTRA_DB_APPLICATION_TOKEN!);
 const db = client.db(process.env.ENDPOINT!);
@@ -311,18 +353,34 @@ function parseSADate(dateText: string): string {
 function determineLegalCategory(title: string, text: string): string {
   const lowerTitle = title.toLowerCase();
   const lowerText = text.toLowerCase();
-  const combined = lowerTitle + " " + lowerText.substring(0, 1000);
+  const combined = lowerTitle + " " + lowerText.substring(0, 2000);
 
+  // Count keyword matches for more accurate categorization
+  const labourMatches = LABOUR_LAW_KEYWORDS.filter(kw => combined.includes(kw.toLowerCase())).length;
+  const contractMatches = CONTRACT_LAW_KEYWORDS.filter(kw => combined.includes(kw.toLowerCase())).length;
+
+  // Determine primary category
   if (combined.includes("constitution") || combined.includes("constitutional")) return "Constitutional Law";
-  if (combined.includes("labour") || combined.includes("employment") || combined.includes("dismissal")) return "Labour Law";
-  if (combined.includes("contract") || combined.includes("agreement")) return "Contract Law";
+  
+  // Labour Law: check for labour court or multiple labour keywords
+  if (combined.includes("labour") || combined.includes("employment")) {
+    if (labourMatches >= 2 || combined.includes("labour court")) return "Labour Law";
+  }
+  if (labourMatches >= 3) return "Labour Law";
+
+  // Contract Law: check for contract court or multiple contract keywords  
+  if (combined.includes("contract") || combined.includes("agreement")) {
+    if (contractMatches >= 2 || combined.includes("contract law")) return "Contract Law";
+  }
+  if (contractMatches >= 3) return "Contract Law";
+
   if (combined.includes("criminal") || combined.includes("sentence") || combined.includes("conviction")) return "Criminal Law";
-  if (combined.includes("delict") || combined.includes("tort") || combined.includes("damages")) return "Law of Delict";
+  if (combined.includes("delict") || combined.includes("tort")) return "Law of Delict";
   if (combined.includes("property") || combined.includes("land") || combined.includes("ownership")) return "Property Law";
   if (combined.includes("family") || combined.includes("divorce") || combined.includes("custody")) return "Family Law";
   if (combined.includes("admin") || combined.includes("administrative")) return "Administrative Law";
   if (combined.includes("tax") || combined.includes("revenue")) return "Tax Law";
-  
+
   return "General Law";
 }
 

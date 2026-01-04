@@ -1,0 +1,380 @@
+{
+  "contractTypes": {
+    "employment": {
+      "name": "Employment Contract",
+      "description": "Contract of employment between employer and employee",
+      "clauses": [
+        {
+          "id": "emp_parties",
+          "name": "Parties",
+          "importance": "critical",
+          "description": "Identification of employer and employee",
+          "keywords": ["employer", "employee", "parties", "between"],
+          "sampleText": "This agreement is entered into between [EMPLOYER] (\"the Employer\") and [EMPLOYEE] (\"the Employee\")."
+        },
+        {
+          "id": "emp_commencement",
+          "name": "Commencement Date",
+          "importance": "critical",
+          "description": "Start date of employment",
+          "keywords": ["commencement", "start date", "effective date", "begins"],
+          "sampleText": "The Employee's employment shall commence on [DATE]."
+        },
+        {
+          "id": "emp_duties",
+          "name": "Job Description & Duties",
+          "importance": "critical",
+          "description": "Description of role and responsibilities",
+          "keywords": ["duties", "responsibilities", "job description", "position", "role"],
+          "sampleText": "The Employee is employed in the position of [POSITION] and shall perform the duties set out in Annexure A."
+        },
+        {
+          "id": "emp_remuneration",
+          "name": "Remuneration",
+          "importance": "critical",
+          "description": "Salary and payment terms",
+          "keywords": ["salary", "remuneration", "wage", "payment", "compensation"],
+          "sampleText": "The Employee shall receive a monthly salary of R[AMOUNT], payable on the last working day of each month."
+        },
+        {
+          "id": "emp_hours",
+          "name": "Working Hours",
+          "importance": "critical",
+          "description": "Normal working hours per BCEA",
+          "keywords": ["working hours", "hours of work", "work week", "overtime"],
+          "sampleText": "The Employee's normal working hours shall be [X] hours per week, from [TIME] to [TIME], Monday to Friday."
+        },
+        {
+          "id": "emp_leave",
+          "name": "Leave Entitlement",
+          "importance": "critical",
+          "description": "Annual, sick, and family responsibility leave",
+          "keywords": ["leave", "annual leave", "sick leave", "vacation", "holiday"],
+          "sampleText": "The Employee shall be entitled to [X] days annual leave per annum in accordance with the Basic Conditions of Employment Act."
+        },
+        {
+          "id": "emp_probation",
+          "name": "Probation Period",
+          "importance": "recommended",
+          "description": "Initial probationary period",
+          "keywords": ["probation", "probationary", "trial period"],
+          "sampleText": "The Employee shall serve a probationary period of [X] months from the commencement date."
+        },
+        {
+          "id": "emp_termination",
+          "name": "Termination",
+          "importance": "critical",
+          "description": "Notice periods and termination procedures",
+          "keywords": ["termination", "notice period", "resignation", "dismissal"],
+          "sampleText": "Either party may terminate this agreement by giving [X] weeks' written notice."
+        },
+        {
+          "id": "emp_confidentiality",
+          "name": "Confidentiality",
+          "importance": "recommended",
+          "description": "Protection of confidential information",
+          "keywords": ["confidential", "confidentiality", "proprietary", "trade secret"],
+          "sampleText": "The Employee shall not disclose any confidential information of the Employer during or after employment."
+        },
+        {
+          "id": "emp_restraint",
+          "name": "Restraint of Trade",
+          "importance": "optional",
+          "description": "Post-employment restrictions",
+          "keywords": ["restraint", "non-compete", "competition", "restriction"],
+          "sampleText": "For a period of [X] months after termination, the Employee shall not engage in competing business within [AREA]."
+        },
+        {
+          "id": "emp_deductions",
+          "name": "Deductions",
+          "importance": "recommended",
+          "description": "Authorized deductions from salary",
+          "keywords": ["deduction", "deduct", "withhold"],
+          "sampleText": "The Employer may deduct from the Employee's remuneration amounts authorized by law or agreed in writing."
+        },
+        {
+          "id": "emp_dispute",
+          "name": "Dispute Resolution",
+          "importance": "recommended",
+          "description": "Grievance and dispute procedures",
+          "keywords": ["dispute", "grievance", "CCMA", "arbitration"],
+          "sampleText": "Any dispute arising from this agreement shall be referred to the CCMA for conciliation and, if necessary, arbitration."
+        }
+      ]
+    },
+    "lease_residential": {
+      "name": "Residential Lease Agreement",
+      "description": "Lease for residential property",
+      "clauses": [
+        {
+          "id": "lease_parties",
+          "name": "Parties",
+          "importance": "critical",
+          "description": "Landlord and tenant identification",
+          "keywords": ["landlord", "tenant", "lessor", "lessee", "parties"],
+          "sampleText": "This lease is entered into between [LANDLORD] (\"the Landlord\") and [TENANT] (\"the Tenant\")."
+        },
+        {
+          "id": "lease_premises",
+          "name": "Description of Premises",
+          "importance": "critical",
+          "description": "Property address and description",
+          "keywords": ["premises", "property", "address", "situated at"],
+          "sampleText": "The Landlord hereby lets to the Tenant the property situated at [ADDRESS] (\"the Premises\")."
+        },
+        {
+          "id": "lease_term",
+          "name": "Lease Term",
+          "importance": "critical",
+          "description": "Duration of the lease",
+          "keywords": ["term", "period", "duration", "commence", "expire"],
+          "sampleText": "The lease shall commence on [DATE] and terminate on [DATE], a period of [X] months."
+        },
+        {
+          "id": "lease_rental",
+          "name": "Rental Amount",
+          "importance": "critical",
+          "description": "Monthly rental and payment terms",
+          "keywords": ["rental", "rent", "monthly", "payment"],
+          "sampleText": "The Tenant shall pay a monthly rental of R[AMOUNT], due on the first day of each month."
+        },
+        {
+          "id": "lease_deposit",
+          "name": "Deposit",
+          "importance": "critical",
+          "description": "Security deposit terms per RHA",
+          "keywords": ["deposit", "security deposit", "refund"],
+          "sampleText": "The Tenant shall pay a deposit of R[AMOUNT] which shall be held in an interest-bearing account in accordance with the Rental Housing Act."
+        },
+        {
+          "id": "lease_escalation",
+          "name": "Rental Escalation",
+          "importance": "recommended",
+          "description": "Annual rental increase",
+          "keywords": ["escalation", "increase", "annual", "percentage"],
+          "sampleText": "The rental shall escalate by [X]% on each anniversary of the commencement date."
+        },
+        {
+          "id": "lease_maintenance",
+          "name": "Maintenance & Repairs",
+          "importance": "critical",
+          "description": "Responsibility for maintenance",
+          "keywords": ["maintenance", "repair", "condition", "good order"],
+          "sampleText": "The Tenant shall maintain the Premises in good condition and shall be responsible for minor repairs up to R[AMOUNT]."
+        },
+        {
+          "id": "lease_utilities",
+          "name": "Utilities",
+          "importance": "recommended",
+          "description": "Responsibility for utilities",
+          "keywords": ["utilities", "electricity", "water", "rates", "services"],
+          "sampleText": "The Tenant shall be responsible for payment of electricity, water, and other utilities consumed at the Premises."
+        },
+        {
+          "id": "lease_use",
+          "name": "Use of Premises",
+          "importance": "critical",
+          "description": "Permitted use restrictions",
+          "keywords": ["use", "residential", "purpose", "business"],
+          "sampleText": "The Premises shall be used solely for residential purposes and not for any business or commercial activity."
+        },
+        {
+          "id": "lease_subletting",
+          "name": "Subletting",
+          "importance": "recommended",
+          "description": "Restrictions on subletting",
+          "keywords": ["sublet", "subletting", "assign", "transfer"],
+          "sampleText": "The Tenant shall not sublet the Premises or any part thereof without the prior written consent of the Landlord."
+        },
+        {
+          "id": "lease_termination",
+          "name": "Termination",
+          "importance": "critical",
+          "description": "Notice and termination procedures",
+          "keywords": ["termination", "notice", "cancel", "breach"],
+          "sampleText": "Either party may terminate this lease by giving [X] months' written notice."
+        },
+        {
+          "id": "lease_inspection",
+          "name": "Inspection",
+          "importance": "recommended",
+          "description": "Joint inspection requirements",
+          "keywords": ["inspection", "joint inspection", "condition report"],
+          "sampleText": "A joint inspection shall be conducted at commencement and termination of the lease."
+        }
+      ]
+    },
+    "service_agreement": {
+      "name": "Service Agreement",
+      "description": "Agreement for provision of services",
+      "clauses": [
+        {
+          "id": "svc_parties",
+          "name": "Parties",
+          "importance": "critical",
+          "description": "Service provider and client identification",
+          "keywords": ["parties", "provider", "client", "between"],
+          "sampleText": "This agreement is entered into between [PROVIDER] (\"the Service Provider\") and [CLIENT] (\"the Client\")."
+        },
+        {
+          "id": "svc_services",
+          "name": "Scope of Services",
+          "importance": "critical",
+          "description": "Description of services to be provided",
+          "keywords": ["services", "scope", "deliverables", "provide"],
+          "sampleText": "The Service Provider shall provide the services described in Schedule A (\"the Services\")."
+        },
+        {
+          "id": "svc_fees",
+          "name": "Fees and Payment",
+          "importance": "critical",
+          "description": "Service fees and payment terms",
+          "keywords": ["fees", "payment", "invoice", "price"],
+          "sampleText": "The Client shall pay the Service Provider fees as set out in Schedule B, within [X] days of invoice."
+        },
+        {
+          "id": "svc_term",
+          "name": "Term",
+          "importance": "critical",
+          "description": "Duration of agreement",
+          "keywords": ["term", "duration", "period", "commence"],
+          "sampleText": "This agreement shall commence on [DATE] and continue for a period of [X] months."
+        },
+        {
+          "id": "svc_termination",
+          "name": "Termination",
+          "importance": "critical",
+          "description": "Termination provisions",
+          "keywords": ["termination", "terminate", "cancel", "notice"],
+          "sampleText": "Either party may terminate this agreement by giving [X] days' written notice."
+        },
+        {
+          "id": "svc_warranties",
+          "name": "Warranties",
+          "importance": "recommended",
+          "description": "Service quality warranties",
+          "keywords": ["warranty", "warranties", "represent", "guarantee"],
+          "sampleText": "The Service Provider warrants that the Services shall be performed with reasonable skill and care."
+        },
+        {
+          "id": "svc_liability",
+          "name": "Limitation of Liability",
+          "importance": "critical",
+          "description": "Caps on liability",
+          "keywords": ["liability", "limitation", "damages", "cap"],
+          "sampleText": "The Service Provider's total liability shall not exceed the fees paid under this agreement."
+        },
+        {
+          "id": "svc_indemnity",
+          "name": "Indemnity",
+          "importance": "recommended",
+          "description": "Indemnification provisions",
+          "keywords": ["indemnify", "indemnity", "hold harmless"],
+          "sampleText": "Each party shall indemnify the other against claims arising from its breach of this agreement."
+        },
+        {
+          "id": "svc_confidentiality",
+          "name": "Confidentiality",
+          "importance": "recommended",
+          "description": "Protection of confidential information",
+          "keywords": ["confidential", "confidentiality", "proprietary"],
+          "sampleText": "Each party shall keep confidential all information received from the other party."
+        },
+        {
+          "id": "svc_ip",
+          "name": "Intellectual Property",
+          "importance": "recommended",
+          "description": "IP ownership and licensing",
+          "keywords": ["intellectual property", "IP", "copyright", "ownership"],
+          "sampleText": "All intellectual property created in performing the Services shall vest in [PARTY]."
+        },
+        {
+          "id": "svc_force_majeure",
+          "name": "Force Majeure",
+          "importance": "recommended",
+          "description": "Excusal for events beyond control",
+          "keywords": ["force majeure", "act of god", "beyond control"],
+          "sampleText": "Neither party shall be liable for failure to perform due to circumstances beyond its reasonable control."
+        },
+        {
+          "id": "svc_dispute",
+          "name": "Dispute Resolution",
+          "importance": "recommended",
+          "description": "Dispute resolution mechanism",
+          "keywords": ["dispute", "arbitration", "mediation", "resolution"],
+          "sampleText": "Any dispute shall first be referred to mediation before either party may institute legal proceedings."
+        },
+        {
+          "id": "svc_governing_law",
+          "name": "Governing Law",
+          "importance": "critical",
+          "description": "Applicable law and jurisdiction",
+          "keywords": ["governing law", "jurisdiction", "South African law"],
+          "sampleText": "This agreement shall be governed by the laws of the Republic of South Africa."
+        }
+      ]
+    },
+    "nda": {
+      "name": "Non-Disclosure Agreement",
+      "description": "Confidentiality agreement",
+      "clauses": [
+        {
+          "id": "nda_parties",
+          "name": "Parties",
+          "importance": "critical",
+          "description": "Disclosing and receiving parties",
+          "keywords": ["parties", "disclosing party", "receiving party"],
+          "sampleText": "This agreement is entered into between [DISCLOSER] (\"Disclosing Party\") and [RECIPIENT] (\"Receiving Party\")."
+        },
+        {
+          "id": "nda_definition",
+          "name": "Definition of Confidential Information",
+          "importance": "critical",
+          "description": "What constitutes confidential information",
+          "keywords": ["confidential information", "definition", "includes"],
+          "sampleText": "\"Confidential Information\" means all information disclosed by the Disclosing Party, whether oral, written, or electronic."
+        },
+        {
+          "id": "nda_obligations",
+          "name": "Confidentiality Obligations",
+          "importance": "critical",
+          "description": "Duties of the receiving party",
+          "keywords": ["obligation", "shall not disclose", "protect", "safeguard"],
+          "sampleText": "The Receiving Party shall not disclose Confidential Information to any third party without prior written consent."
+        },
+        {
+          "id": "nda_exceptions",
+          "name": "Exceptions",
+          "importance": "critical",
+          "description": "Information not covered",
+          "keywords": ["exception", "exclude", "public domain", "independently"],
+          "sampleText": "Confidential Information does not include information that is publicly available or independently developed."
+        },
+        {
+          "id": "nda_term",
+          "name": "Term",
+          "importance": "critical",
+          "description": "Duration of confidentiality obligations",
+          "keywords": ["term", "duration", "period", "years"],
+          "sampleText": "The obligations under this agreement shall continue for [X] years from the date of disclosure."
+        },
+        {
+          "id": "nda_return",
+          "name": "Return of Information",
+          "importance": "recommended",
+          "description": "Return or destruction of materials",
+          "keywords": ["return", "destroy", "deletion", "upon request"],
+          "sampleText": "Upon request, the Receiving Party shall return or destroy all Confidential Information."
+        },
+        {
+          "id": "nda_remedies",
+          "name": "Remedies",
+          "importance": "recommended",
+          "description": "Remedies for breach",
+          "keywords": ["remedy", "injunction", "damages", "breach"],
+          "sampleText": "The Disclosing Party shall be entitled to seek injunctive relief for any breach of this agreement."
+        }
+      ]
+    }
+  }
+}

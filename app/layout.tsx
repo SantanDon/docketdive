@@ -1,6 +1,7 @@
 import "./global.css";
 import { ThemeProvider } from "next-themes";
 import ErrorBoundary from "./components/ErrorBoundary";
+import { PostHogProvider } from "./providers/PostHogProvider";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
@@ -27,14 +28,15 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       </head>
       <body>
         <ErrorBoundary>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-          >
-            {children}
-          </ThemeProvider>
+          <PostHogProvider>
+            <ThemeProvider
+              attribute="class"
+              defaultTheme="system"
+              enableSystem
+            >
+              {children}
+            </ThemeProvider>
+          </PostHogProvider>
         </ErrorBoundary>
       </body>
     </html>

@@ -98,7 +98,7 @@ export default function InputArea({ onAttachClick }: InputAreaProps) {
                 className={cn(
                   "h-10 w-10 rounded-xl transition-all duration-200",
                   inputMessage.trim()
-                    ? "bg-linear-to-br from-blue-600 to-cyan-500 text-white hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
+                    ? "bg-gradient-to-br from-blue-600 to-cyan-500 text-white hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
                     : "bg-muted text-muted-foreground hover:bg-muted/80"
                 )}
                 onClick={() => inputMessage.trim() && sendMessage()}

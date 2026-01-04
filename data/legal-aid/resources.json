@@ -1,0 +1,270 @@
+{
+  "legalAidSA": {
+    "name": "Legal Aid South Africa",
+    "description": "Government-funded organization providing legal assistance to those who cannot afford private legal representation",
+    "website": "https://legal-aid.co.za",
+    "tollFree": "0800 110 110",
+    "email": "info@legal-aid.co.za",
+    "eligibility": {
+      "meansTest": {
+        "description": "Applicants must pass a means test based on income and assets",
+        "singlePerson": {
+          "maxMonthlyIncome": 8000,
+          "maxAssets": 100000
+        },
+        "household": {
+          "maxMonthlyIncome": 10000,
+          "maxAssets": 150000
+        },
+        "notes": [
+          "Income includes salary, wages, grants, and other regular income",
+          "Assets exclude primary residence and household goods",
+          "Amounts are updated periodically - verify current thresholds"
+        ]
+      },
+      "automaticQualification": [
+        "Recipients of social grants",
+        "Children in need of legal representation",
+        "Persons in detention awaiting trial",
+        "Persons facing eviction from their homes"
+      ]
+    },
+    "servicesProvided": [
+      "Criminal defense",
+      "Civil litigation",
+      "Family law matters",
+      "Labour disputes",
+      "Land and housing matters",
+      "Children's rights",
+      "Refugee and asylum matters"
+    ],
+    "howToApply": [
+      "Visit your nearest Legal Aid SA office",
+      "Call the toll-free number: 0800 110 110",
+      "Apply online at legal-aid.co.za",
+      "Bring ID document and proof of income"
+    ]
+  },
+  "legalAidOffices": {
+    "description": "Legal Aid SA has offices in all provinces",
+    "provinces": [
+      {
+        "province": "Gauteng",
+        "mainOffice": "Johannesburg",
+        "phone": "011 877 2000"
+      },
+      {
+        "province": "Western Cape",
+        "mainOffice": "Cape Town",
+        "phone": "021 426 4126"
+      },
+      {
+        "province": "KwaZulu-Natal",
+        "mainOffice": "Durban",
+        "phone": "031 301 3400"
+      },
+      {
+        "province": "Eastern Cape",
+        "mainOffice": "East London",
+        "phone": "043 722 2107"
+      },
+      {
+        "province": "Free State",
+        "mainOffice": "Bloemfontein",
+        "phone": "051 447 9915"
+      },
+      {
+        "province": "Limpopo",
+        "mainOffice": "Polokwane",
+        "phone": "015 297 5577"
+      },
+      {
+        "province": "Mpumalanga",
+        "mainOffice": "Nelspruit",
+        "phone": "013 752 5577"
+      },
+      {
+        "province": "North West",
+        "mainOffice": "Mahikeng",
+        "phone": "018 381 1087"
+      },
+      {
+        "province": "Northern Cape",
+        "mainOffice": "Kimberley",
+        "phone": "053 832 6927"
+      }
+    ]
+  },
+  "otherResources": {
+    "lawClinics": {
+      "description": "University law clinics provide free legal assistance",
+      "clinics": [
+        {
+          "name": "Wits Law Clinic",
+          "university": "University of the Witwatersrand",
+          "location": "Johannesburg",
+          "phone": "011 717 8562"
+        },
+        {
+          "name": "UCT Law Clinic",
+          "university": "University of Cape Town",
+          "location": "Cape Town",
+          "phone": "021 650 3775"
+        },
+        {
+          "name": "UP Law Clinic",
+          "university": "University of Pretoria",
+          "location": "Pretoria",
+          "phone": "012 420 4155"
+        },
+        {
+          "name": "UKZN Law Clinic",
+          "university": "University of KwaZulu-Natal",
+          "location": "Durban",
+          "phone": "031 260 2500"
+        },
+        {
+          "name": "Stellenbosch Law Clinic",
+          "university": "Stellenbosch University",
+          "location": "Stellenbosch",
+          "phone": "021 808 3600"
+        }
+      ]
+    },
+    "ngoLegalServices": [
+      {
+        "name": "Legal Resources Centre (LRC)",
+        "description": "Public interest law firm providing free legal services",
+        "website": "https://lrc.org.za",
+        "focus": ["Constitutional litigation", "Land rights", "Environmental justice"]
+      },
+      {
+        "name": "Section27",
+        "description": "Public interest law centre focusing on health and education rights",
+        "website": "https://section27.org.za",
+        "focus": ["Health rights", "Education rights", "Social justice"]
+      },
+      {
+        "name": "Lawyers for Human Rights (LHR)",
+        "description": "Human rights organization providing legal assistance",
+        "website": "https://www.lhr.org.za",
+        "focus": ["Refugee rights", "Detention monitoring", "Land rights"]
+      },
+      {
+        "name": "ProBono.Org",
+        "description": "Connects people with volunteer lawyers",
+        "website": "https://probono.org.za",
+        "focus": ["Various legal matters", "Pro bono referrals"]
+      },
+      {
+        "name": "SECTION27",
+        "description": "Public interest law centre",
+        "website": "https://section27.org.za",
+        "focus": ["Health", "Education", "Social security"]
+      }
+    ],
+    "ombudsmen": [
+      {
+        "name": "Public Protector",
+        "description": "Investigates government misconduct and maladministration",
+        "website": "https://www.pprotect.org",
+        "phone": "0800 11 20 40"
+      },
+      {
+        "name": "South African Human Rights Commission",
+        "description": "Promotes and protects human rights",
+        "website": "https://www.sahrc.org.za",
+        "phone": "011 877 3600"
+      },
+      {
+        "name": "Commission for Gender Equality",
+        "description": "Promotes gender equality and investigates complaints",
+        "website": "https://cge.org.za",
+        "phone": "011 403 7182"
+      },
+      {
+        "name": "CCMA",
+        "description": "Commission for Conciliation, Mediation and Arbitration - labour disputes",
+        "website": "https://www.ccma.org.za",
+        "phone": "0861 16 16 16"
+      }
+    ]
+  },
+  "feeWaivers": {
+    "courtFees": {
+      "description": "Court fees may be waived for indigent persons",
+      "process": [
+        "Complete an affidavit declaring inability to pay",
+        "Submit to the Registrar of the court",
+        "Provide proof of income/financial status",
+        "Registrar will assess and grant/deny waiver"
+      ],
+      "relevantLegislation": "Rules of Court, Rule 67"
+    },
+    "sheriffFees": {
+      "description": "Sheriff fees for service of documents may be waived",
+      "process": [
+        "Apply to the court for exemption",
+        "Provide proof of indigence",
+        "Court may order state to pay sheriff fees"
+      ]
+    }
+  },
+  "selfHelpResources": {
+    "saflii": {
+      "name": "SAFLII - Southern African Legal Information Institute",
+      "website": "https://www.saflii.org",
+      "description": "Free access to South African case law and legislation"
+    },
+    "govza": {
+      "name": "Government Gazette",
+      "website": "https://www.gov.za/documents/acts",
+      "description": "Official source for South African legislation"
+    },
+    "smallClaimsCourt": {
+      "description": "For claims up to R20,000 - no lawyers allowed, simplified procedure",
+      "limit": 20000,
+      "features": [
+        "No legal representation allowed",
+        "Simplified procedures",
+        "Commissioner assists parties",
+        "Quick resolution"
+      ]
+    }
+  },
+  "emergencyContacts": {
+    "police": "10111",
+    "genderBasedViolence": "0800 428 428",
+    "childline": "0800 055 555",
+    "suicidePrevention": "0800 567 567",
+    "domesticViolence": "0800 150 150"
+  },
+  "plainLanguageGuidance": {
+    "description": "Tips for explaining legal concepts in plain language",
+    "principles": [
+      "Use short sentences (under 20 words)",
+      "Avoid Latin terms - use English equivalents",
+      "Explain technical terms when first used",
+      "Use examples from everyday life",
+      "Break complex processes into numbered steps",
+      "Use 'you' and 'your' to address the reader directly"
+    ],
+    "commonTermsSimplified": {
+      "plaintiff": "the person bringing the case",
+      "defendant": "the person being sued",
+      "affidavit": "a written statement made under oath",
+      "summons": "a document telling you to come to court",
+      "subpoena": "a court order requiring you to appear or produce documents",
+      "interdict": "a court order stopping someone from doing something",
+      "locus standi": "the right to bring a case to court",
+      "res judicata": "a matter already decided by a court",
+      "prima facie": "at first glance / on the face of it",
+      "bona fide": "in good faith / genuine",
+      "ex parte": "one-sided / without the other party present",
+      "in camera": "in private / not open to the public",
+      "pro bono": "free legal work",
+      "sine die": "without a fixed date",
+      "mutatis mutandis": "with necessary changes"
+    }
+  }
+}

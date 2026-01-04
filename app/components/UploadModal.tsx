@@ -17,11 +17,11 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 dark:bg-black/60 backdrop-blur-sm animate-in fade-in">
       <div className="relative w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto">
-        <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in">
+        <div className="bg-background dark:bg-background rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in border border-border">
           {/* Header */}
-          <div className="relative bg-linear-to-br from-blue-600 to-cyan-600 p-6 text-white flex items-center justify-between">
+          <div className="relative bg-gradient-to-br from-blue-600 to-cyan-600 p-6 text-white flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
                 <FileUp size={20} />

@@ -1,0 +1,68 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e7]:
+      - generic [ref=e8]:
+        - link "Exit Tools" [ref=e10] [cursor=pointer]:
+          - /url: /
+          - button "Exit Tools" [ref=e11]:
+            - img
+            - generic [ref=e12]: Exit Tools
+        - generic [ref=e13]:
+          - img [ref=e15]
+          - generic [ref=e19]:
+            - generic [ref=e20]: DocketDive
+            - generic [ref=e21]: Legal Suite
+    - main [ref=e22]:
+      - generic [ref=e24]:
+        - generic [ref=e27]:
+          - img [ref=e29]
+          - generic [ref=e32]:
+            - heading "DraftingAssistant" [level=1] [ref=e33]
+            - paragraph [ref=e34]: Generate professional legal documents with AI-powered precision.
+        - generic [ref=e35]:
+          - generic [ref=e37]:
+            - generic [ref=e38]:
+              - generic [ref=e39]:
+                - text: Document Type
+                - button "Select a template..." [active] [ref=e41]:
+                  - generic [ref=e42]:
+                    - img [ref=e43]
+                    - generic [ref=e45]: Select a template...
+                  - img [ref=e46]
+              - generic [ref=e49]:
+                - text: Drafting Tone
+                - button "Formal" [ref=e51]:
+                  - generic [ref=e52]: Formal
+                  - img [ref=e53]
+              - generic [ref=e55]:
+                - text: Context & Requirements
+                - textbox "Describe the specific purpose, parties involved, and key terms for this draft..." [ref=e56]
+            - button "Execute AI Draft" [disabled]:
+              - img
+              - generic: Execute AI Draft
+          - generic [ref=e58]:
+            - generic [ref=e60]:
+              - img [ref=e62]
+              - generic [ref=e65]: Document Preview
+            - generic [ref=e67]:
+              - img [ref=e69]
+              - generic [ref=e72]:
+                - paragraph [ref=e73]: No draft available
+                - paragraph [ref=e74]: Configure your requirements and click Generate.
+            - generic [ref=e75]:
+              - generic [ref=e77]: "STATUS: IDLE"
+              - generic [ref=e78]:
+                - img [ref=e79]
+                - generic [ref=e82]: AI ASSISTED
+  - button "Open Next.js Dev Tools" [ref=e88] [cursor=pointer]:
+    - generic [ref=e91]:
+      - text: Compiling
+      - generic [ref=e92]:
+        - generic [ref=e93]: .
+        - generic [ref=e94]: .
+        - generic [ref=e95]: .
+  - alert [ref=e96]
+```

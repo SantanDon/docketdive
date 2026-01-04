@@ -1,9 +1,23 @@
 {
   "version": 2,
   "buildCommand": "npm run build",
-  "installCommand": "npm install",
+  "installCommand": "npm install --legacy-peer-deps",
   "framework": "nextjs",
-  "regions": ["syd1"],
+  "regions": ["iad1"],
+  "functions": {
+    "app/api/chat/route.ts": {
+      "maxDuration": 60,
+      "memory": 1024
+    },
+    "app/api/analyze/route.ts": {
+      "maxDuration": 30,
+      "memory": 1024
+    },
+    "app/api/upload/route.ts": {
+      "maxDuration": 30,
+      "memory": 1024
+    }
+  },
   "env": {
     "NODE_ENV": "production"
   }

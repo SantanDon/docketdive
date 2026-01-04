@@ -56,5 +56,18 @@ export interface MemoryContext {
   conversationSummary?: string;
 }
 
+export interface PendingAttachment {
+  file: File;
+  content: string;
+  metadata: {
+    fileName: string;
+    fileSize: number;
+    fileType: string;
+    isScanned?: boolean;
+    ocrConfidence?: number;
+  };
+}
+
 export type ELILevel = "ELI5" | "ELI15" | "ELI25";
 export type Mode = "normal" | "student";
+

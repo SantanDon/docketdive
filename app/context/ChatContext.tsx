@@ -1,7 +1,27 @@
 'use client';
 
-import React, { createContext, useContext, useState, type ReactNode, type Dispatch, type SetStateAction, useCallback, useRef } from 'react';
-import type { Message, ELILevel, Mode, Conversation } from '../types';
+import React, { createContext, useContext, useState, type ReactNode, type Dispatch, type SetStateAction, useCallback, useRef, useEffect } from 'react';
+import type { Message, ELILevel, Mode, Conversation, PendingAttachment } from '../types';
+
+import { useRouter } from 'next/navigation';
+
+// Generate a unique anonymous user ID for privacy isolation
+function getOrCreateAnonymousUserId(): string {
+  if (typeof window === 'undefined') return 'server_render';
+  
+  const storageKey = 'docketdive_anonymous_user_id';
+  let userId = localStorage.getItem(storageKey);
+  
+  if (!userId) {
+    // Generate a cryptographically random ID
+    const array = new Uint8Array(16);
+    crypto.getRandomValues(array);
+    userId = 'anon_' + Array.from(array, b => b.toString(16).padStart(2, '0')).join('');
+    localStorage.setItem(storageKey, userId);
+  }
+  
+  return userId;
+}
 
 interface ChatContextType {
   messages: Message[];
@@ -23,17 +43,25 @@ interface ChatContextType {
   toggleStudentMode: () => void;
   provider: "ollama" | "groq";
   setProvider: Dispatch<SetStateAction<"ollama" | "groq">>;
+  streamingStatus: string;
   sendMessage: (messageOverride?: string) => Promise<void>;
   stopGeneration: () => void;
   newChat: () => void;
   handleLogin: () => void;
   deleteConversation: (id: string) => void;
   loadConversation: (id: string) => void;
+  language: string;
+  setLanguage: Dispatch<SetStateAction<string>>;
+  legalAidMode: boolean;
+  setLegalAidMode: Dispatch<SetStateAction<boolean>>;
+  pendingAttachment: PendingAttachment | null;
+  setPendingAttachment: Dispatch<SetStateAction<PendingAttachment | null>>;
 }
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
 
 export const ChatProvider = ({ children }: { children: ReactNode }) => {
+  const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [inputMessage, setInputMessage] = useState('');
@@ -43,6 +71,42 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
   const [eliLevel, setEliLevel] = useState<ELILevel>('ELI15');
   const [showLogin, setShowLogin] = useState(false);
   const [provider, setProvider] = useState<"ollama" | "groq">("groq");
+  const [streamingStatus, setStreamingStatus] = useState("");
+  const [language, setLanguage] = useState<string>("en");
+  const [legalAidMode, setLegalAidMode] = useState<boolean>(false);
+  const [anonymousUserId, setAnonymousUserId] = useState<string>('');
+  const [pendingAttachment, setPendingAttachment] = useState<PendingAttachment | null>(null);
+
+  // Initialize anonymous user ID on mount (client-side only)
+  useEffect(() => {
+    setAnonymousUserId(getOrCreateAnonymousUserId());
+  }, []);
+
+  // Load language preference from localStorage on mount
+  React.useEffect(() => {
+    const savedLang = localStorage.getItem("docketdive_language");
+    if (savedLang) setLanguage(savedLang);
+    
+    const savedLegalAid = localStorage.getItem("docketdive_legal_aid");
+    if (savedLegalAid) setLegalAidMode(savedLegalAid === "true");
+
+    // Listen for language changes from LanguageSelector
+    const handleLangChange = (e: CustomEvent) => {
+      setLanguage(e.detail.code);
+    };
+    window.addEventListener("languageChange", handleLangChange as EventListener);
+    
+    // Listen for legal aid mode changes
+    const handleLegalAidChange = (e: CustomEvent) => {
+      setLegalAidMode(e.detail.enabled);
+    };
+    window.addEventListener("legalAidModeChange", handleLegalAidChange as EventListener);
+
+    return () => {
+      window.removeEventListener("languageChange", handleLangChange as EventListener);
+      window.removeEventListener("legalAidModeChange", handleLegalAidChange as EventListener);
+    };
+  }, []);
 
   const toggleStudentMode = useCallback(() => {
     setMode((m) => (m === "student" ? "normal" : "student"));
@@ -102,24 +166,41 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const sendMessage = useCallback(async (messageOverride?: string) => {
-    const rawMessage = (messageOverride ?? inputMessage).trim();
-    if (!rawMessage || isLoading) return;
+    let rawMessage = (messageOverride ?? inputMessage).trim();
+    
+    // Initial check - if no message and no attachment, return
+    if ((!rawMessage && !pendingAttachment) || isLoading) return;
+    
+    // If there's an attachment, prepend it to the message
+    if (pendingAttachment) {
+      const attachmentContext = `\n\n[ATTACHED DOCUMENT]\nFilename: ${pendingAttachment.metadata.fileName}\nContent:\n${pendingAttachment.content}\n[END ATTACHED DOCUMENT]\n\n`;
+      rawMessage = attachmentContext + (rawMessage || "Analyze this document.");
+    }
+
+    if (!rawMessage) return;
+
+    // Check for glossary intent
+    if (rawMessage.toLowerCase().includes("legal tools") || rawMessage.toLowerCase().includes("show tools")) {
+      router.push("/tools");
+      return;
+    }
 
     // Create new AbortController
     abortControllerRef.current = new AbortController();
 
-    const userMessage: Message = {
+    const userMessage = {
       id: String(Date.now()),
       content: rawMessage,
-      role: "user",
+      role: "user" as const,
       timestamp: new Date().toISOString(),
-      status: "sending",
-    };
+      status: "sending" as const,
+    } as Message;
 
     // Optimistic update
     const newMessages = [...messages, userMessage];
     setMessages(newMessages);
     setInputMessage("");
+    setPendingAttachment(null); // Clear attachment after sending
     setIsLoading(true);
 
     // enhance when in student mode
@@ -147,51 +228,91 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
           provider,
           conversationHistory: messages,
           conversationId,
-          userId: "default_user"
+          userId: anonymousUserId || getOrCreateAnonymousUserId(),
+          language,
+          legalAidMode
         }),
         signal: abortControllerRef.current.signal,
       });
 
-      const data = await res.json();
+      if (!res.ok) throw new Error(`Server error: ${res.status}`);
+      if (!res.body) throw new Error("No response body");
 
-      // mark user's message as sent
-      const messagesWithSentStatus = newMessages.map((m) =>
-        m.id === userMessage.id ? { ...m, status: "sent" as const } : m
-      );
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let done = false;
+      let fullContent = "";
+      let sources: any[] = [];
+      setStreamingStatus("");
 
-      setMessages(messagesWithSentStatus);
+      // Add temporary assistant message for streaming
+      const assistantMessageId = String(Date.now() + 1);
+      setMessages(prev => [
+        ...prev,
+        {
+          id: assistantMessageId,
+          content: "",
+          role: "assistant",
+          timestamp: new Date().toISOString(),
+          status: "sending",
+          sources: []
+        }
+      ]);
 
-      // Format the response with better legal structure
-      let formattedResponse = data?.response ?? "Sorry, something went wrong.";
+      const buffer: string[] = [];
 
-      // Add legal-specific formatting if in student mode
-      if (mode === "student") {
-        const levelText = 
-          eliLevel === "ELI5" ? "ELI5 level" :
-          eliLevel === "ELI15" ? "ELI15 level" : "ELI25 level";
-        
-        formattedResponse = `🎓 **Student Mode (${levelText}):**\n\n${data?.response}`;
+      while (!done) {
+        const { value, done: doneReading } = await reader.read();
+        done = doneReading;
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split("\n").filter(l => l.trim());
+
+        for (const line of lines) {
+          try {
+            const parsed = JSON.parse(line);
+            
+            if (parsed.type === "text_delta") {
+              setStreamingStatus(""); // Clear status once text starts
+              fullContent += parsed.content;
+              setMessages(prev => prev.map(m => 
+                m.id === assistantMessageId ? { ...m, content: fullContent } : m
+              ));
+            } else if (parsed.type === "sources") {
+              sources = parsed.content;
+              setMessages(prev => prev.map(m => 
+                m.id === assistantMessageId ? { ...m, sources } : m
+              ));
+            } else if (parsed.type === "status" && parsed.content) {
+              setStreamingStatus(parsed.content);
+            } else if (parsed.type === "error") {
+              throw new Error(parsed.content);
+            }
+          } catch (e) {
+            console.error("Error parsing NDJSON line:", line, e);
+          }
+        }
       }
 
-      const assistantMessage: Message = {
-        id: String(Date.now() + 1),
-        content: formattedResponse,
-        role: "assistant",
-        timestamp: new Date().toISOString(),
-        status: "sent",
-        sources: data?.sources ?? [],
-      };
+      // Final update to mark as sent and format
+      setMessages(prev => prev.map(m => {
+        if (m.id === assistantMessageId) {
+          let formattedContent = fullContent;
+          if (mode === "student") {
+            const levelText = eliLevel === "ELI5" ? "ELI5 level" : eliLevel === "ELI15" ? "ELI15 level" : "ELI25 level";
+            formattedContent = `🎓 **Student Mode (${levelText}):**\n\n${fullContent}`;
+          }
+          return { ...m, content: formattedContent, status: "sent" };
+        }
+        return m;
+      }));
 
-      const finalMessages = [...messagesWithSentStatus, assistantMessage];
-      setMessages(finalMessages);
-
-      // Save to current_messages
-      localStorage.setItem("current_messages", JSON.stringify(finalMessages));
-
-      // Show memory metadata in console (optional)
-      if (data?.metadata?.memoryUsed) {
-        console.log("?? Memory Context:", data.metadata.memoryUsed);
-      }
+      // Save to localStorage
+      setMessages(current => {
+        localStorage.setItem("current_messages", JSON.stringify(current));
+        return current;
+      });
 
     } catch (err: any) {
       if (err.name === 'AbortError') {
@@ -199,10 +320,9 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
       
-      // on error, append an assistant error message
       const errMsg: Message = {
         id: String(Date.now() + 2),
-        content: "⚠️ I apologize, but I encountered an error processing your legal query. Please try again or rephrase your question.",
+        content: `⚠️ Error: ${err.message || "I encountered an error processing your legal query. Please try again."}`,
         role: "assistant",
         timestamp: new Date().toISOString(),
         status: "sent",
@@ -211,9 +331,10 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
       console.error(err);
     } finally {
       setIsLoading(false);
+      setStreamingStatus("");
       abortControllerRef.current = null;
     }
-  }, [inputMessage, isLoading, mode, eliLevel, messages, provider]);
+  }, [inputMessage, isLoading, mode, eliLevel, messages, provider, language, legalAidMode, anonymousUserId, pendingAttachment]);
 
   const newChat = useCallback(() => {
     // Save current conversation before clearing
@@ -278,7 +399,14 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
       deleteConversation,
       loadConversation,
       provider,
-      setProvider
+      setProvider,
+      streamingStatus,
+      language,
+      setLanguage,
+      legalAidMode,
+      setLegalAidMode,
+      pendingAttachment,
+      setPendingAttachment
     }}>
       {children}
     </ChatContext.Provider>

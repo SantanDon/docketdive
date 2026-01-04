@@ -1,0 +1,365 @@
+{
+  "popiaRequirements": {
+    "privacy_policy": {
+      "name": "Privacy Policy",
+      "description": "Public-facing privacy notice required under POPIA",
+      "requirements": [
+        {
+          "id": "pp_identity",
+          "section": "Section 18(1)(a)",
+          "name": "Responsible Party Identity",
+          "description": "Name and address of the responsible party",
+          "importance": "critical",
+          "keywords": ["responsible party", "company name", "address", "contact", "we", "our company"],
+          "checkText": "The privacy policy must clearly identify who is collecting the data"
+        },
+        {
+          "id": "pp_purpose",
+          "section": "Section 18(1)(b)",
+          "name": "Purpose of Processing",
+          "description": "Purpose for which personal information is collected",
+          "importance": "critical",
+          "keywords": ["purpose", "why we collect", "use your information", "processing", "reason"],
+          "checkText": "Must explain why personal information is being collected"
+        },
+        {
+          "id": "pp_categories",
+          "section": "Section 18(1)(c)",
+          "name": "Categories of Information",
+          "description": "Description of categories of personal information collected",
+          "importance": "critical",
+          "keywords": ["categories", "types of information", "personal information", "data we collect", "information collected"],
+          "checkText": "Must list what types of personal information are collected"
+        },
+        {
+          "id": "pp_recipients",
+          "section": "Section 18(1)(d)",
+          "name": "Recipients of Information",
+          "description": "Recipients or categories of recipients to whom information may be supplied",
+          "importance": "critical",
+          "keywords": ["recipients", "third parties", "share", "disclose", "transfer", "service providers"],
+          "checkText": "Must identify who may receive the personal information"
+        },
+        {
+          "id": "pp_voluntary",
+          "section": "Section 18(1)(e)",
+          "name": "Voluntary or Mandatory",
+          "description": "Whether supply of information is voluntary or mandatory",
+          "importance": "recommended",
+          "keywords": ["voluntary", "mandatory", "required", "optional", "must provide"],
+          "checkText": "Should indicate if providing information is optional or required"
+        },
+        {
+          "id": "pp_consequences",
+          "section": "Section 18(1)(f)",
+          "name": "Consequences of Non-Supply",
+          "description": "Consequences of failure to provide information",
+          "importance": "recommended",
+          "keywords": ["consequences", "failure to provide", "if you don't", "unable to"],
+          "checkText": "Should explain what happens if information is not provided"
+        },
+        {
+          "id": "pp_rights",
+          "section": "Section 18(1)(g)",
+          "name": "Data Subject Rights",
+          "description": "Right to access, correct, and object to processing",
+          "importance": "critical",
+          "keywords": ["rights", "access", "correct", "delete", "object", "withdraw consent", "data subject"],
+          "checkText": "Must inform data subjects of their rights under POPIA"
+        },
+        {
+          "id": "pp_complaints",
+          "section": "Section 18(1)(h)",
+          "name": "Right to Complain",
+          "description": "Right to lodge a complaint with the Information Regulator",
+          "importance": "critical",
+          "keywords": ["complaint", "information regulator", "lodge", "regulator"],
+          "checkText": "Must inform of right to complain to the Information Regulator"
+        },
+        {
+          "id": "pp_transborder",
+          "section": "Section 72",
+          "name": "Cross-Border Transfers",
+          "description": "Information about transfers outside South Africa",
+          "importance": "critical",
+          "keywords": ["cross-border", "transborder", "outside south africa", "international", "foreign country", "overseas"],
+          "checkText": "Must disclose if data is transferred outside South Africa"
+        },
+        {
+          "id": "pp_security",
+          "section": "Section 19",
+          "name": "Security Measures",
+          "description": "Description of security measures to protect information",
+          "importance": "recommended",
+          "keywords": ["security", "protect", "safeguard", "encryption", "secure", "measures"],
+          "checkText": "Should describe how personal information is protected"
+        },
+        {
+          "id": "pp_retention",
+          "section": "Section 14",
+          "name": "Retention Period",
+          "description": "How long personal information will be retained",
+          "importance": "recommended",
+          "keywords": ["retention", "retain", "keep", "store", "period", "delete", "destroy"],
+          "checkText": "Should specify how long data will be kept"
+        },
+        {
+          "id": "pp_cookies",
+          "section": "Section 69",
+          "name": "Cookies and Tracking",
+          "description": "Information about cookies and online tracking",
+          "importance": "recommended",
+          "keywords": ["cookies", "tracking", "analytics", "pixel", "beacon"],
+          "checkText": "Should disclose use of cookies and tracking technologies"
+        },
+        {
+          "id": "pp_children",
+          "section": "Section 35",
+          "name": "Children's Information",
+          "description": "Special provisions for processing children's information",
+          "importance": "recommended",
+          "keywords": ["children", "minor", "child", "under 18", "parental consent"],
+          "checkText": "Should address processing of children's personal information if applicable"
+        },
+        {
+          "id": "pp_automated",
+          "section": "Section 71",
+          "name": "Automated Decision-Making",
+          "description": "Information about automated decision-making",
+          "importance": "recommended",
+          "keywords": ["automated", "algorithm", "profiling", "automated decision"],
+          "checkText": "Should disclose automated decision-making if used"
+        },
+        {
+          "id": "pp_updates",
+          "section": "General",
+          "name": "Policy Updates",
+          "description": "How changes to the policy will be communicated",
+          "importance": "recommended",
+          "keywords": ["update", "change", "amend", "modify", "revised"],
+          "checkText": "Should explain how policy changes will be communicated"
+        }
+      ]
+    },
+    "data_processing_agreement": {
+      "name": "Data Processing Agreement (Operator Agreement)",
+      "description": "Agreement between responsible party and operator under Section 21",
+      "requirements": [
+        {
+          "id": "dpa_parties",
+          "section": "Section 21",
+          "name": "Parties Identification",
+          "description": "Clear identification of responsible party and operator",
+          "importance": "critical",
+          "keywords": ["responsible party", "operator", "processor", "controller", "parties"],
+          "checkText": "Must identify the responsible party and operator"
+        },
+        {
+          "id": "dpa_instructions",
+          "section": "Section 21(1)(a)",
+          "name": "Processing Instructions",
+          "description": "Operator must process only on instructions of responsible party",
+          "importance": "critical",
+          "keywords": ["instructions", "documented instructions", "only process", "direction"],
+          "checkText": "Must specify that operator acts only on documented instructions"
+        },
+        {
+          "id": "dpa_security",
+          "section": "Section 21(1)(b)",
+          "name": "Security Obligations",
+          "description": "Operator must establish and maintain security measures",
+          "importance": "critical",
+          "keywords": ["security measures", "appropriate measures", "safeguards", "protect"],
+          "checkText": "Must require operator to implement security measures"
+        },
+        {
+          "id": "dpa_confidentiality",
+          "section": "Section 21(1)(c)",
+          "name": "Confidentiality",
+          "description": "Operator must treat information as confidential",
+          "importance": "critical",
+          "keywords": ["confidential", "confidentiality", "not disclose", "secret"],
+          "checkText": "Must require operator to maintain confidentiality"
+        },
+        {
+          "id": "dpa_subprocessors",
+          "section": "Section 21",
+          "name": "Sub-Processors",
+          "description": "Requirements for engaging sub-processors",
+          "importance": "critical",
+          "keywords": ["sub-processor", "subcontractor", "third party", "engage", "appoint"],
+          "checkText": "Must address use of sub-processors"
+        },
+        {
+          "id": "dpa_assistance",
+          "section": "Section 21",
+          "name": "Assistance Obligations",
+          "description": "Operator must assist with data subject requests",
+          "importance": "recommended",
+          "keywords": ["assist", "assistance", "data subject request", "help", "support"],
+          "checkText": "Should require operator to assist with data subject requests"
+        },
+        {
+          "id": "dpa_breach",
+          "section": "Section 22",
+          "name": "Breach Notification",
+          "description": "Notification requirements for security compromises",
+          "importance": "critical",
+          "keywords": ["breach", "security compromise", "notify", "notification", "incident"],
+          "checkText": "Must require notification of security breaches"
+        },
+        {
+          "id": "dpa_deletion",
+          "section": "Section 21",
+          "name": "Data Deletion/Return",
+          "description": "Return or deletion of data upon termination",
+          "importance": "critical",
+          "keywords": ["delete", "return", "destroy", "termination", "end of agreement"],
+          "checkText": "Must address data handling upon termination"
+        },
+        {
+          "id": "dpa_audit",
+          "section": "Section 21",
+          "name": "Audit Rights",
+          "description": "Right to audit operator's compliance",
+          "importance": "recommended",
+          "keywords": ["audit", "inspection", "verify", "compliance", "access"],
+          "checkText": "Should include audit rights"
+        },
+        {
+          "id": "dpa_transborder",
+          "section": "Section 72",
+          "name": "Cross-Border Transfers",
+          "description": "Restrictions on international transfers",
+          "importance": "critical",
+          "keywords": ["cross-border", "transborder", "international", "transfer", "outside"],
+          "checkText": "Must address cross-border data transfers"
+        }
+      ]
+    },
+    "consent_form": {
+      "name": "Consent Form",
+      "description": "Form for obtaining data subject consent",
+      "requirements": [
+        {
+          "id": "cf_identity",
+          "section": "Section 18",
+          "name": "Organization Identity",
+          "description": "Clear identification of who is collecting consent",
+          "importance": "critical",
+          "keywords": ["company", "organization", "we", "our"],
+          "checkText": "Must identify who is collecting consent"
+        },
+        {
+          "id": "cf_purpose",
+          "section": "Section 13",
+          "name": "Specific Purpose",
+          "description": "Specific purpose for which consent is sought",
+          "importance": "critical",
+          "keywords": ["purpose", "use", "process", "reason", "why"],
+          "checkText": "Must specify the exact purpose of processing"
+        },
+        {
+          "id": "cf_voluntary",
+          "section": "Section 11",
+          "name": "Voluntary Nature",
+          "description": "Consent must be voluntary",
+          "importance": "critical",
+          "keywords": ["voluntary", "freely given", "choice", "optional"],
+          "checkText": "Must indicate consent is voluntary"
+        },
+        {
+          "id": "cf_withdrawal",
+          "section": "Section 11(2)(b)",
+          "name": "Right to Withdraw",
+          "description": "Information about withdrawing consent",
+          "importance": "critical",
+          "keywords": ["withdraw", "revoke", "cancel", "opt out"],
+          "checkText": "Must explain how to withdraw consent"
+        },
+        {
+          "id": "cf_signature",
+          "section": "General",
+          "name": "Signature/Confirmation",
+          "description": "Clear mechanism for recording consent",
+          "importance": "critical",
+          "keywords": ["signature", "sign", "agree", "consent", "accept", "confirm"],
+          "checkText": "Must have clear consent mechanism"
+        },
+        {
+          "id": "cf_date",
+          "section": "General",
+          "name": "Date",
+          "description": "Date consent was given",
+          "importance": "recommended",
+          "keywords": ["date", "dated"],
+          "checkText": "Should record date of consent"
+        }
+      ]
+    }
+  },
+  "dataSubjectRights": [
+    {
+      "id": "right_access",
+      "name": "Right of Access",
+      "section": "Section 23",
+      "description": "Right to request confirmation and access to personal information"
+    },
+    {
+      "id": "right_correction",
+      "name": "Right to Correction",
+      "section": "Section 24",
+      "description": "Right to request correction or deletion of inaccurate information"
+    },
+    {
+      "id": "right_deletion",
+      "name": "Right to Deletion",
+      "section": "Section 24",
+      "description": "Right to request deletion of personal information"
+    },
+    {
+      "id": "right_object",
+      "name": "Right to Object",
+      "section": "Section 11(3)",
+      "description": "Right to object to processing for direct marketing"
+    },
+    {
+      "id": "right_complaint",
+      "name": "Right to Complain",
+      "section": "Section 74",
+      "description": "Right to lodge a complaint with the Information Regulator"
+    }
+  ],
+  "lawfulProcessingConditions": [
+    {
+      "id": "consent",
+      "name": "Consent",
+      "section": "Section 11(1)(a)",
+      "description": "Data subject has consented to processing"
+    },
+    {
+      "id": "contract",
+      "name": "Contract",
+      "section": "Section 11(1)(b)",
+      "description": "Processing is necessary for a contract"
+    },
+    {
+      "id": "legal_obligation",
+      "name": "Legal Obligation",
+      "section": "Section 11(1)(c)",
+      "description": "Processing is required by law"
+    },
+    {
+      "id": "legitimate_interest",
+      "name": "Legitimate Interest",
+      "section": "Section 11(1)(f)",
+      "description": "Processing is necessary for legitimate interests"
+    },
+    {
+      "id": "public_interest",
+      "name": "Public Interest",
+      "section": "Section 11(1)(d)",
+      "description": "Processing is necessary for public interest"
+    }
+  ]
+}

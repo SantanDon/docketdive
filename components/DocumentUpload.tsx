@@ -1,7 +1,10 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
-import { Upload, FileText, Loader2, Check, X, Zap, Database, FileUp } from 'lucide-react';
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { FileText, Loader2, Check, X, Zap, Database, Sparkles, FileSearch } from 'lucide-react';
+import DocumentDropzone from '@/components/DocumentDropzone';
+import { cn } from '@/lib/utils';
 
 interface UploadedFile {
   text: string;
@@ -12,95 +15,40 @@ interface UploadedFile {
     pageCount: number;
     wordCount: number;
     charCount: number;
+    isScanned?: boolean;
+    ocrConfidence?: number;
   };
 }
 
+// Animation variants
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1, transition: { staggerChildren: 0.08 } }
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 10 },
+  visible: { opacity: 1, y: 0 }
+};
+
 export default function DocumentUpload() {
-  const [uploading, setUploading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [addingToKB, setAddingToKB] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<UploadedFile | null>(null);
   const [analysis, setAnalysis] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [isDragActive, setIsDragActive] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileUpload = async (file: File) => {
-    if (!file) return;
-
-    setUploading(true);
+  const handleDocumentLoaded = (text: string, metadata: { fileName: string; fileSize: number; fileType: string; pageCount: number; wordCount: number; charCount: number; isScanned?: boolean; ocrConfidence?: number }) => {
+    setUploadedFile({ text, metadata });
+    setSuccess(`Successfully extracted ${metadata.wordCount.toLocaleString()} words from ${metadata.fileName}`);
     setError(null);
-    setSuccess(null);
     setAnalysis(null);
-
-    const formData = new FormData();
-    formData.append('file', file);
-
-    try {
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Upload failed');
-      }
-
-      setUploadedFile(data);
-      setSuccess(`Successfully extracted ${data.metadata.wordCount.toLocaleString()} words from ${data.metadata.fileName}`);
-    } catch (err: any) {
-      setError(err.message || 'Upload failed');
-    } finally {
-      setUploading(false);
-    }
   };
 
-  const onDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setIsDragActive(false);
-
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      const file = e.dataTransfer.files[0];
-
-      // Validate file type
-      const allowedTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain'];
-      if (!allowedTypes.includes(file.type) && !file.name.endsWith('.docx')) {
-        setError('Invalid file type. Only PDF, DOCX, and TXT files are supported.');
-        return;
-      }
-
-      // Validate file size (50MB)
-      if (file.size > 50 * 1024 * 1024) {
-        setError('File size exceeds 50MB limit');
-        return;
-      }
-
-      handleFileUpload(file);
-    }
-  }, []);
-
-  const onDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-  }, []);
-
-  const onDragEnter = useCallback((e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setIsDragActive(true);
-  }, []);
-
-  const onDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setIsDragActive(false);
-  }, []);
-
-  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      handleFileUpload(file);
-    }
+  const handleUploadError = (errorMsg: string) => {
+    setError(errorMsg);
+    setSuccess(null);
   };
 
   const handleQuickAnalysis = async () => {
@@ -128,8 +76,8 @@ export default function DocumentUpload() {
 
       setAnalysis(data.analysis);
       setSuccess(`Analysis completed in ${data.metadata.responseTime}`);
-    } catch (err: any) {
-      setError(err.message || 'Analysis failed');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Analysis failed');
     } finally {
       setAnalyzing(false);
     }
@@ -163,8 +111,8 @@ export default function DocumentUpload() {
       }
 
       setSuccess(`Added ${data.chunksStored} chunks to knowledge base. You can now query this document!`);
-    } catch (err: any) {
-      setError(err.message || 'Failed to add to knowledge base');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to add to knowledge base');
     } finally {
       setAddingToKB(false);
     }
@@ -178,161 +126,227 @@ export default function DocumentUpload() {
     return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
   };
 
+  const handleReset = () => {
+    setUploadedFile(null);
+    setAnalysis(null);
+    setError(null);
+    setSuccess(null);
+  };
+
   return (
-    <div className="max-w-4xl mx-auto p-6">
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold mb-2">Document Upload & Analysis</h2>
-        <p className="text-gray-600">
-          Upload legal documents (PDF, DOCX, TXT) for quick analysis or to add to your knowledge base
-        </p>
-      </div>
-
-      {/* Upload Area with Drag & Drop */}
-      <div
-        className={`border-2 rounded-lg p-8 text-center transition-colors mb-6
-          ${isDragActive
-            ? 'border-blue-500 bg-blue-50'
-            : 'border-dashed border-gray-300 hover:border-blue-400 hover:bg-gray-50'}
-        `}
-        onDrop={onDrop}
-        onDragOver={onDragOver}
-        onDragEnter={onDragEnter}
-        onDragLeave={onDragLeave}
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="max-w-4xl mx-auto p-6"
+    >
+      {/* Header */}
+      <motion.div 
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="mb-8 text-center"
       >
-        <div className="flex flex-col items-center justify-center">
-          <FileUp className={`mx-auto h-12 w-12 ${isDragActive ? 'text-blue-600' : 'text-gray-400'} mb-4`} />
-          <p className="text-lg font-medium mb-2">
-            {isDragActive ? 'Drop your file here' : 'Drag & drop your file, or click to browse'}
-          </p>
-          <p className="text-sm text-gray-500 mb-4">PDF, DOCX, or TXT (Max 50MB)</p>
+        <motion.div
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: "spring", stiffness: 200, damping: 20 }}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-4"
+        >
+          <FileSearch size={14} className="text-primary" />
+          <span className="text-sm font-medium text-primary">Document Analysis</span>
+        </motion.div>
+        <h2 className="text-3xl font-bold text-gradient mb-2">Document Upload & Analysis</h2>
+        <p className="text-muted-foreground">
+          Upload legal documents for quick analysis or add them to your knowledge base
+        </p>
+      </motion.div>
 
-          <button
-            type="button"
-            className={`px-4 py-2 rounded-lg font-medium transition-colors
-              ${isDragActive
-                ? 'bg-blue-600 text-white hover:bg-blue-700'
-                : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}
-            `}
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading || analyzing || addingToKB}
-          >
-            {uploading ? 'Processing...' : 'Select File'}
-          </button>
-
-          <input
-            type="file"
-            ref={fileInputRef}
-            className="hidden"
-            accept=".pdf,.docx,.txt"
-            onChange={handleFileInputChange}
-            disabled={uploading || analyzing || addingToKB}
+      <motion.div 
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+        className="space-y-6"
+      >
+        {/* Document Dropzone */}
+        <motion.div variants={itemVariants}>
+          <DocumentDropzone
+            onDocumentLoaded={handleDocumentLoaded}
+            onError={handleUploadError}
+            disabled={analyzing || addingToKB}
           />
-        </div>
-      </div>
+        </motion.div>
 
-      {/* Loading State */}
-      {uploading && (
-        <div className="flex items-center justify-center p-4 bg-blue-50 rounded-lg mb-6">
-          <Loader2 className="animate-spin mr-2 text-blue-600" />
-          <span className="text-blue-600">Extracting text from document...</span>
-        </div>
-      )}
+        {/* Error Message */}
+        <AnimatePresence>
+          {error && (
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="flex items-start p-4 bg-destructive/10 rounded-xl border border-destructive/20"
+            >
+              <X className="mr-3 text-destructive shrink-0 mt-0.5" size={18} />
+              <span className="text-destructive">{error}</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-      {/* Error Message */}
-      {error && (
-        <div className="flex items-start p-4 bg-red-50 rounded-lg mb-6">
-          <X className="mr-2 text-red-600 shrink-0 mt-0.5" />
-          <span className="text-red-600">{error}</span>
-        </div>
-      )}
+        {/* Success Message */}
+        <AnimatePresence>
+          {success && !error && (
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="flex items-start p-4 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-200 dark:border-green-800"
+            >
+              <Check className="mr-3 text-green-600 dark:text-green-400 shrink-0 mt-0.5" size={18} />
+              <span className="text-green-600 dark:text-green-400">{success}</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-      {/* Success Message */}
-      {success && !error && (
-        <div className="flex items-start p-4 bg-green-50 rounded-lg mb-6">
-          <Check className="mr-2 text-green-600 shrink-0 mt-0.5" />
-          <span className="text-green-600">{success}</span>
-        </div>
-      )}
-
-      {/* Uploaded File Info */}
-      {uploadedFile && (
-        <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6">
-          <div className="flex items-start mb-4">
-            <FileText className="mr-3 text-gray-600 shrink-0" />
-            <div className="flex-1">
-              <h3 className="font-semibold text-lg mb-2 truncate">{uploadedFile.metadata.fileName}</h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm text-gray-600">
-                <div className="flex items-center">
-                  <span className="mr-1">📄</span> Pages: {uploadedFile.metadata.pageCount}
+        {/* Uploaded File Info */}
+        <AnimatePresence>
+          {uploadedFile && (
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="glass-card p-6"
+            >
+              <div className="flex items-start mb-4">
+                <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg mr-4">
+                  <FileText className="text-white" size={24} />
                 </div>
-                <div className="flex items-center">
-                  <span className="mr-1">📝</span> Words: {uploadedFile.metadata.wordCount.toLocaleString()}
-                </div>
-                <div className="flex items-center">
-                  <span className="mr-1">💾</span> Size: {formatBytes(uploadedFile.metadata.fileSize)}
-                </div>
-                <div className="flex items-center md:hidden">
-                  <span className="mr-1">🔤</span> Chars: {uploadedFile.metadata.charCount.toLocaleString()}
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-lg mb-2 truncate text-foreground">{uploadedFile.metadata.fileName}</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-1">
+                      <span>📄</span> {uploadedFile.metadata.pageCount} pages
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span>📝</span> {uploadedFile.metadata.wordCount.toLocaleString()} words
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span>💾</span> {formatBytes(uploadedFile.metadata.fileSize)}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span>🔤</span> {uploadedFile.metadata.charCount.toLocaleString()} chars
+                    </div>
+                  </div>
+                  {uploadedFile.metadata.isScanned && (
+                    <div className="mt-2 flex items-center gap-2 text-xs">
+                      <Sparkles size={12} className="text-primary" />
+                      <span className="text-muted-foreground">OCR processed</span>
+                      {uploadedFile.metadata.ocrConfidence !== undefined && (
+                        <span className={cn(
+                          "px-2 py-0.5 rounded-full",
+                          uploadedFile.metadata.ocrConfidence >= 70 
+                            ? "bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400"
+                            : "bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400"
+                        )}>
+                          {uploadedFile.metadata.ocrConfidence}% confidence
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
-              <div className="hidden md:flex text-sm text-gray-600 mt-1">
-                <div className="flex items-center mr-4">
-                  <span className="mr-1">🔤</span> Characters: {uploadedFile.metadata.charCount.toLocaleString()}
-                </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-wrap gap-3">
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleQuickAnalysis}
+                  disabled={analyzing || addingToKB}
+                  className={cn(
+                    "flex items-center px-5 py-2.5 rounded-xl font-medium transition-all",
+                    "bg-gradient-to-r from-primary to-accent text-white",
+                    "hover:opacity-90 shadow-lg hover:shadow-xl",
+                    "disabled:opacity-50 disabled:cursor-not-allowed"
+                  )}
+                >
+                  {analyzing ? (
+                    <>
+                      <Loader2 className="animate-spin mr-2 h-4 w-4" />
+                      Analyzing...
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="mr-2 h-4 w-4" />
+                      Quick Analysis
+                    </>
+                  )}
+                </motion.button>
+
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleAddToKnowledgeBase}
+                  disabled={analyzing || addingToKB}
+                  className={cn(
+                    "flex items-center px-5 py-2.5 rounded-xl font-medium transition-all",
+                    "bg-gradient-to-r from-green-500 to-emerald-600 text-white",
+                    "hover:opacity-90 shadow-lg hover:shadow-xl",
+                    "disabled:opacity-50 disabled:cursor-not-allowed"
+                  )}
+                >
+                  {addingToKB ? (
+                    <>
+                      <Loader2 className="animate-spin mr-2 h-4 w-4" />
+                      Adding...
+                    </>
+                  ) : (
+                    <>
+                      <Database className="mr-2 h-4 w-4" />
+                      Add to Knowledge Base
+                    </>
+                  )}
+                </motion.button>
+
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleReset}
+                  disabled={analyzing || addingToKB}
+                  className={cn(
+                    "flex items-center px-5 py-2.5 rounded-xl font-medium transition-all",
+                    "border border-border bg-card text-foreground",
+                    "hover:bg-muted/50",
+                    "disabled:opacity-50 disabled:cursor-not-allowed"
+                  )}
+                >
+                  <X className="mr-2 h-4 w-4" />
+                  Clear
+                </motion.button>
               </div>
-            </div>
-          </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-          {/* Action Buttons */}
-          <div className="flex flex-wrap gap-3">
-            <button
-              onClick={handleQuickAnalysis}
-              disabled={analyzing || addingToKB}
-              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors min-w-[150px]"
+        {/* Analysis Results */}
+        <AnimatePresence>
+          {analysis && (
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="glass-card p-6"
             >
-              {analyzing ? (
-                <>
-                  <Loader2 className="animate-spin mr-2 h-4 w-4" />
-                  Analyzing...
-                </>
-              ) : (
-                <>
-                  <Zap className="mr-2 h-4 w-4" />
-                  Quick Analysis
-                </>
-              )}
-            </button>
-
-            <button
-              onClick={handleAddToKnowledgeBase}
-              disabled={analyzing || addingToKB}
-              className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors min-w-[150px]"
-            >
-              {addingToKB ? (
-                <>
-                  <Loader2 className="animate-spin mr-2 h-4 w-4" />
-                  Adding...
-                </>
-              ) : (
-                <>
-                  <Database className="mr-2 h-4 w-4" />
-                  Add to Knowledge Base
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Analysis Results */}
-      {analysis && (
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <h3 className="text-lg font-semibold mb-3">📊 Analysis Results</h3>
-          <div className="prose max-w-none">
-            <div className="whitespace-pre-wrap text-gray-700">{analysis}</div>
-          </div>
-        </div>
-      )}
-    </div>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg">
+                  <Sparkles className="text-white" size={20} />
+                </div>
+                <h3 className="text-lg font-semibold text-foreground">Analysis Results</h3>
+              </div>
+              <div className="prose prose-sm dark:prose-invert max-w-none">
+                <div className="whitespace-pre-wrap text-muted-foreground leading-relaxed">{analysis}</div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
+    </motion.div>
   );
 }

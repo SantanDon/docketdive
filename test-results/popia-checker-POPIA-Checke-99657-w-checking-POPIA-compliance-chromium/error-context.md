@@ -1,0 +1,65 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e7]:
+      - generic [ref=e8]:
+        - link "Exit Tools" [ref=e10] [cursor=pointer]:
+          - /url: /
+          - button "Exit Tools" [ref=e11]:
+            - img
+            - generic [ref=e12]: Exit Tools
+        - generic [ref=e13]:
+          - img [ref=e15]
+          - generic [ref=e19]:
+            - generic [ref=e20]: DocketDive
+            - generic [ref=e21]: Legal Suite
+    - main [ref=e22]:
+      - generic [ref=e24]:
+        - generic [ref=e26]:
+          - img [ref=e28]
+          - generic [ref=e30]:
+            - generic [ref=e32]: Compliance Tool
+            - heading "POPIAChecker" [level=1] [ref=e33]
+            - paragraph [ref=e34]: Automated South African data privacy audit for policies and agreements.
+        - generic [ref=e37]:
+          - heading "Audit Configuration" [level=3] [ref=e40]
+          - generic [ref=e41]:
+            - img [ref=e42]
+            - generic [ref=e44]:
+              - paragraph [ref=e45]: Legal Disclaimer
+              - paragraph [ref=e46]: This tool uses pattern matching for screening. It is not a substitute for professional legal advice.
+          - generic [ref=e47]:
+            - generic [ref=e48]:
+              - text: Document Type
+              - generic [ref=e49]:
+                - combobox [ref=e50] [cursor=pointer]:
+                  - option "Auto-detect Type" [selected]
+                  - option "Privacy Policy"
+                  - option "DPA (Operator Agreement)"
+                  - option "Consent Form"
+                - generic:
+                  - img
+            - generic [ref=e51]:
+              - text: Secure Upload
+              - generic [ref=e54] [cursor=pointer]:
+                - img [ref=e56]
+                - paragraph [ref=e60]: Click to upload document
+          - generic [ref=e61]: or manual entry
+          - generic [ref=e64]:
+            - generic [ref=e66]: Document Content
+            - textbox "Paste policy or agreement text here..." [active] [ref=e67]: PRIVACY POLICY We collect your name and email address. We use this data to provide our services. We do not share your data with third parties without consent. You have the right to access your data.
+            - paragraph [ref=e69]: 248 Characters
+          - button "Audit Document" [ref=e70]:
+            - img
+            - text: Audit Document
+  - button "Open Next.js Dev Tools" [ref=e76] [cursor=pointer]:
+    - generic [ref=e79]:
+      - text: Compiling
+      - generic [ref=e80]:
+        - generic [ref=e81]: .
+        - generic [ref=e82]: .
+        - generic [ref=e83]: .
+  - alert [ref=e84]
+```

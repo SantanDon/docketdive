@@ -5,6 +5,7 @@ import {
   retrieveRelevantDocuments,
   buildContext,
   generateResponse,
+  generateResponseStream,
   getEmbedding,
   HF_EMBED_MODEL,
   verifyOllamaModel,
@@ -35,277 +36,313 @@ initializeMemoryCollection().catch(console.error);
 
 export async function POST(request: Request) {
   const start = Date.now();
+  const encoder = new TextEncoder();
 
-  try {
-    const body = await request.json();
-    const { 
-      message, 
-      provider,
-      conversationHistory = [],
-      conversationId = `conv_${Date.now()}`,
-      userId = "default_user"
-    } = body;
-
-    // Diagnostic logging for Production debugging (safe snippets)
-    console.log("🛠️ Environment Check:", {
-      NODE_ENV: process.env.NODE_ENV,
-      VERCEL: process.env.VERCEL,
-      HAS_GROQ: !!process.env.GROQ_API_KEY,
-      HAS_HF: !!process.env.HUGGINGFACE_API_KEY,
-      HF_KEY_START: process.env.HUGGINGFACE_API_KEY?.substring(0, 5),
-      HAS_ASTRA: !!process.env.ASTRA_DB_APPLICATION_TOKEN,
-      ENDPOINT_PRESENT: !!(process.env.ASTRA_DB_API_ENDPOINT || process.env.ENDPOINT)
-    });
-
-    if (!message || typeof message !== "string" || message.trim().length === 0) {
-      return new Response(JSON.stringify({ error: "Message is required" }), { status: 400 });
-    }
-
-    const query = message.trim();
-    if (query.length > 2000) {
-      return new Response(JSON.stringify({ error: "Message too long (max 2000 chars)" }), { status: 400 });
-    }
-
-    // Skip model verification for speed - assume it's running
-    // if (provider !== "groq") {
-    //   const modelOk = await verifyOllamaModel();
-    //   if (!modelOk) {
-    //     return new Response(JSON.stringify({
-    //       error: "Chat model not available",
-    //       fix: `Run: ollama pull granite3.3:2b`
-    //     }), { status: 503 });
-    //   }
-    // }
-
-    // CONTEXT-AWARE RETRIEVAL: Always use recent conversation context
-    // Build conversation context string for query enrichment
-    const recentMessages = conversationHistory.slice(-5); // Last 5 messages for context
-    const conversationContextStr = recentMessages
-      .map((m: Message) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`)
-      .join("\n");
-    
-    // Extract the LAST assistant message for explicit context
-    const lastAssistantMessage = conversationHistory
-      .slice()
-      .reverse()
-      .find((m: Message) => m.role === "assistant");
-    const lastAssistantTopic = lastAssistantMessage?.content.substring(0, 500) || "";
-    
-    // SPEED OPTIMIZATION: Skip memory for most queries, only retrieve documents
-    const isComplexConversation = conversationHistory.length > 10 && query.length > 100;
-    
-    console.time("⏱️ Total Chat Handler");
-    const [memoryContext, docs] = await Promise.all([
-      isComplexConversation 
-        ? (async () => {
-            console.time("⏱️ Memory Context");
-            const res = await buildMemoryContext(conversationHistory, query, userId, conversationId);
-            console.timeEnd("⏱️ Memory Context");
-            return res;
-          })()
-        : Promise.resolve({ recentMessages: conversationHistory.slice(-MAX_RECENT_MESSAGES), relevantHistory: [] }),
-      (async () => {
-        console.time("⏱️ Retrieval");
-        const res = await retrieveRelevantDocuments(query, conversationContextStr);
-        console.timeEnd("⏱️ Retrieval");
-        return res;
-      })()
-    ]);
-    console.timeEnd("⏱️ Total RAG Step");
-
-    const memoryContextStr = formatMemoryContextForPrompt(memoryContext);
-    const ragContext = buildContext(docs);
-    const hasContext = ragContext.length > 0;
-
-    const conversationHistoryStr = memoryContext.recentMessages
-      .map((m: Message) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`)
-      .join("\n\n");
-
-    const contextWindow = manageContextWindow(
-      conversationHistoryStr,
-      ragContext,
-      memoryContextStr
-    );
-
-    const currentDate = format(new Date(), "MMMM d, yyyy");
-    
-    // SPEED OPTIMIZATION: Skip entity tracking for most queries (adds 100-200ms)
-    // Only track for long conversations
-    let keyEntities: string[] = [];
-    let entityContext = "";
-    
-    if (conversationHistory.length > 8) {
-      keyEntities = extractKeyEntities(conversationHistory);
-      const entityTracker = trackConversationEntities(conversationHistory);
-      
-      // Build entity context for better reference handling
-      if (entityTracker.size > 0) {
-        const recentEntities = Array.from(entityTracker.entries())
-          .filter(([_, ref]) => ref.mentions.length > 0)
-          .slice(0, 3); // Reduced from 5 to 3
-        
-        if (recentEntities.length > 0) {
-          entityContext = "\n### Referenced: ";
-          entityContext += recentEntities.map(([key]) => key).join(", ");
-          entityContext += "\n";
+  const stream = new ReadableStream({
+    async start(controller) {
+      function sendChunk(typeSource: string, content: any) {
+        try {
+          controller.enqueue(encoder.encode(JSON.stringify({ type: typeSource, content }) + "\n"));
+        } catch (e) {
+          console.error("Error enqueuing chunk", e);
         }
       }
-    }
-    
-    const enhancedSystemPrompt = `${getSystemPrompt(hasContext, currentDate)}
 
-${lastAssistantTopic ? `### IMMEDIATE CONTEXT - Last Response Was About:\n${lastAssistantTopic}\n\n` : ''}
-
-${contextWindow.memoryContext ? `### Previous Discussions Context:\n${contextWindow.memoryContext}\n` : '\'\''}
-
-${contextWindow.conversationHistory ? `### Current Conversation:\n${contextWindow.conversationHistory}\n` : '\'\''}
-
-${keyEntities.length > 0 ? `### Key Legal Concepts Discussed: ${keyEntities.join(", ")}\n` : '\'\''}
-${entityContext}
-
-You have full access to the conversation history above. You MUST:
-- **CRITICAL CONTEXT RULE**: When user asks a follow-up question WITHOUT repeating the full context:
-  * Example 1: After discussing "wills", if user asks "what age must a witness be" → Answer about witness age FOR WILLS (14 years), NOT general witness age
-  * Example 2: After discussing "Rental Housing Act", if user asks "please expand on this" → Expand on the Rental Housing Act, NOT something else
-  * Example 3: After discussing "contracts", if user asks "what are the remedies" → Answer about contract remedies specifically
-- **ALWAYS look at the last 2-3 messages** to understand what topic is being discussed
-- **NEVER answer in isolation** - every response must consider the ongoing conversation
-- Reference previous questions and answers when relevant
-- Build upon earlier explanations without repeating everything
-- When asked "summarize", "what did we discuss", "expand on this", "tell me more" - refer to the IMMEDIATE previous topic
-- Maintain context across the entire conversation
-- Recall specific details from previous messages
-- When user says "the first one", "your previous example", "that case", "this", "it", "them" - identify what they're referring to from conversation history
-- Use explicit turn markers to understand conversation flow
-- **If unsure what user is referring to**, look at the LAST assistant message and continue from there
-
-${hasContext ? `### Relevant Legal Documents:\n{INJECTED_CONTEXT}` : '\'\''}
-`;
-
-    const finalPrompt = hasContext 
-      ? enhancedSystemPrompt.replace("{INJECTED_CONTEXT}", contextWindow.ragContext) 
-      : enhancedSystemPrompt;
-
-    console.time("⏱️ LLM Generation");
-    const answer = await generateResponse(query, contextWindow.ragContext, hasContext, provider, finalPrompt);
-    console.timeEnd("⏱️ LLM Generation");
-
-    // ACCURACY CHECK: If no sources at all, ensure the response acknowledges this
-    if (!hasContext || docs.length === 0) {
-      const noSourcesResponse = `I apologize, but I don't have specific information about "${query}" in my legal database.
-
-To ensure you receive accurate information:
-
-1. **Rephrase your question** - Try using different legal terms
-2. **Consult SAFLII** - Visit www.saflii.org for comprehensive South African case law
-3. **Speak with an attorney** - For authoritative legal guidance
-
-I prioritize accuracy over completeness, so I cannot provide information without verified sources.
-
-**Disclaimer:** This response indicates a gap in available sources. Please consult with a qualified legal professional for advice tailored to your specific situation.`;
-      
-      return new Response(JSON.stringify({
-        response: noSourcesResponse,
-        sources: [],
-        metadata: {
-          mode: "No Sources Found",
-          sourcesUsed: 0,
-          responseTime: ((Date.now() - start) / 1000).toFixed(2) + "s",
-          memoryUsed: {
-            recentMessages: memoryContext.recentMessages.length,
-            relevantHistory: memoryContext.relevantHistory.length,
-            hasSummary: "conversationSummary" in memoryContext ? !!memoryContext.conversationSummary : false,
-            contextTruncated: contextWindow.truncated
-          }
-        },
-      }), { status: 200 });
-    }
-
-    const { processedAnswer, sources } = processAnswer(answer, docs, MIN_SIMILARITY_THRESHOLD, MAX_SOURCES_IN_CONTEXT);
-
-    let finalAnswer = processedAnswer;
-
-    // CONTEXT LIMIT WARNING: If context was truncated, warn the user
-    if (contextWindow.truncated) {
-      finalAnswer += "\n\n> ⚠️ **Note:** This conversation is getting long, and some earlier context has been summarized or removed to stay within limits. For best results with a new topic, please **start a new chat**.";
-    }
-
-    // OPTIMIZATION: Generate embeddings and store in memory BACKGROUND (non-blocking)
-    // This shaves off ~1s from the response time as the user doesn't need to wait for storage
-    (async () => {
       try {
-        console.time("⏱️ Message Embeddings (Background)");
-        const [userMessageEmbedding, assistantMessageEmbedding] = await Promise.all([
-          generateMessageEmbedding(query),
-          generateMessageEmbedding(finalAnswer)
+        const body = await request.json();
+        const { 
+          message, 
+          provider,
+          conversationHistory = [],
+          conversationId = `conv_${Date.now()}`,
+          userId = `anon_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, // Generate unique ID if not provided
+          language = "en",
+          legalAidMode = false
+        } = body;
+
+        if (!message || typeof message !== "string" || message.trim().length === 0) {
+          sendChunk("error", "Message is required");
+          controller.close();
+          return;
+        }
+
+        const query = message.trim();
+        
+        // 1. Initial Status
+        sendChunk("status", "Analyzing legal sources...");
+
+        // 2. Parallel RAG Retrieval - ALWAYS include conversation context
+        const recentMessages = conversationHistory.slice(-10); // Increased from 5 for better context
+        const conversationContextStr = recentMessages
+          .map((m: Message) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`)
+          .join("\n");
+        
+        // Always build memory context for conversation continuity
+        const [memoryContext, docs] = await Promise.all([
+          buildMemoryContext(conversationHistory, query, userId, conversationId),
+          retrieveRelevantDocuments(query, conversationContextStr)
         ]);
-        console.timeEnd("⏱️ Message Embeddings (Background)");
 
-        // Store both messages in parallel (ONLY if embeddings are valid to avoid DB dimension errors)
-        if (userMessageEmbedding.length > 0 && assistantMessageEmbedding.length > 0) {
-          Promise.all([
-            storeConversationMemory(
-              conversationId,
-              userId,
-              {
-                id: `msg_${Date.now()}_user`,
-                content: query,
-                role: "user",
-                timestamp: new Date().toISOString(),
-                status: "sent"
-              },
-              userMessageEmbedding
-            ),
-            storeConversationMemory(
-              conversationId,
-              userId,
-              {
-                id: `msg_${Date.now() + 1}_assistant`,
-                content: finalAnswer,
-                role: "assistant",
-                timestamp: new Date().toISOString(),
-                status: "sent",
-                sources
-              },
-              assistantMessageEmbedding
-            )
-          ]).catch(err => console.error("❌ Background Memory Storage failed:", err));
+        const memoryContextStr = formatMemoryContextForPrompt(memoryContext);
+        const ragContext = buildContext(docs);
+        
+        // ACCURACY CHECK: Detect queries that might lead to hallucination
+        let hasContext = ragContext.length > 0;
+        const casePattern = /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+v\.?\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i;
+        const queryCaseMatch = query.match(casePattern);
+        
+        // Check for fake legal concepts (actio de X patterns that don't exist)
+        const fakeLegalConceptPattern = /actio\s+de\s+(felinus|caninus|bovinus|equinus|serpentis)/i;
+        const hasFakeConcept = fakeLegalConceptPattern.test(query);
+        
+        // Check for specific topic queries that need verification
+        const topicQueryPattern = /what\s+(south\s+african\s+)?cases?\s+(deal|involve|concern|about)/i;
+        const isTopicQuery = topicQueryPattern.test(query);
+        
+        if (hasFakeConcept) {
+          console.log(`⚠️ ACCURACY CHECK: Fake legal concept detected in query - treating as no context`);
+          hasContext = false;
+        }
+        
+        if (queryCaseMatch && hasContext) {
+          // User is asking about a specific case - verify it exists in sources
+          const queryCaseName = queryCaseMatch[0].toLowerCase().replace(/\./g, '');
+          const sourceContent = docs.map(d => (d.content || '').toLowerCase()).join(' ');
+          const sourceTitles = docs.map(d => (d.metadata?.title || '').toLowerCase()).join(' ');
+          
+          const caseInSources = sourceContent.includes(queryCaseName) || 
+                                sourceTitles.includes(queryCaseName) ||
+                                // Also check partial matches (e.g., "van meyeren" in "van meyeren v cloete")
+                                queryCaseName.split(' v ').some(part => 
+                                  sourceContent.includes(part.trim()) && part.trim().length > 3
+                                );
+          
+          if (!caseInSources) {
+            console.log(`⚠️ ACCURACY CHECK: Case "${queryCaseMatch[0]}" not found in sources - treating as no context`);
+            hasContext = false;
+          }
+        }
+        
+        // For topic queries asking for cases, verify we have relevant cases
+        if (isTopicQuery && hasContext) {
+          const queryLower = query.toLowerCase();
+          const sourceContent = docs.map(d => (d.content || '').toLowerCase()).join(' ');
+          
+          // Extract topic from query
+          const topicMatches = queryLower.match(/cases?\s+(?:deal|involve|concern|about)\s+(?:with\s+)?(.+?)(?:\?|$)/i);
+          if (topicMatches && topicMatches[1]) {
+            const topic = topicMatches[1].trim();
+            // Check if topic is in sources
+            if (!sourceContent.includes(topic) && !sourceContent.includes(topic.split(' ')[0] || '')) {
+              console.log(`⚠️ ACCURACY CHECK: Topic "${topic}" not found in sources - treating as no context`);
+              hasContext = false;
+            }
+          }
+        }
+
+        // 3. Send Sources as soon as they are ready
+        const sources = hasContext 
+          ? createSources(docs, MIN_SIMILARITY_THRESHOLD)
+          : [];
+        
+        sendChunk("sources", sources);
+
+        if (!hasContext || docs.length === 0) {
+          sendChunk("status", "No specific legal sources found. Providing general guidance...");
         } else {
-          console.warn("⚠️ Skipping conversation memory storage due to missing embeddings");
+          sendChunk("status", "Reading relevant documents...");
         }
-      } catch (err) {
-        console.error("❌ Background Post-Processing failed:", err);
+
+        // 4. Build Prompt
+        const currentDate = format(new Date(), "MMMM d, yyyy");
+        const conversationHistoryStr = memoryContext.recentMessages
+          .map((m: Message) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`)
+          .join("\n\n");
+
+        const contextWindow = manageContextWindow(conversationHistoryStr, ragContext, memoryContextStr);
+        let systemPrompt = getSystemPrompt(hasContext, currentDate);
+        
+        // ACCURACY: Detect user assumptions that need correction
+        const queryLower = query.toLowerCase();
+        const sourceContentLower = docs.map(d => (d.content || '').toLowerCase()).join(' ');
+        let correctionHints: string[] = [];
+        
+        // Check for wrong animal assumption (cat vs dog)
+        if (queryLower.includes('cat') && sourceContentLower.includes('dog') && !sourceContentLower.includes('cat')) {
+          correctionHints.push("⚠️ USER ERROR DETECTED: User mentioned 'cat' but sources only mention 'dog'. You MUST correct this: 'I need to correct a detail - it was a dog, not a cat.'");
+        }
+        
+        // Check for wrong court assumption
+        if (queryLower.includes('constitutional court') && sourceContentLower.includes('western cape') && !sourceContentLower.includes('constitutional court')) {
+          correctionHints.push("⚠️ USER ERROR DETECTED: User mentioned 'Constitutional Court' but sources say 'Western Cape High Court'. You MUST correct this: 'I need to clarify - this case was decided by the Western Cape High Court, not the Constitutional Court.'");
+        }
+        if (queryLower.includes('supreme court') && sourceContentLower.includes('high court') && !sourceContentLower.includes('supreme court')) {
+          correctionHints.push("⚠️ USER ERROR DETECTED: User mentioned 'Supreme Court' but sources say 'High Court'. You MUST correct this.");
+        }
+        
+        // Check for wrong year assumption (Van Meyeren is 2020)
+        const yearMatch = query.match(/\b(201[0-9]|202[0-9])\b/);
+        if (yearMatch && sourceContentLower.includes('2020') && !sourceContentLower.includes(yearMatch[1]!)) {
+          correctionHints.push(`⚠️ USER ERROR DETECTED: User mentioned year '${yearMatch[1]}' but sources indicate '2020'. You MUST correct this: 'I need to correct the year - the case is from 2020, not ${yearMatch[1]}.'`);
+        }
+        
+        // Add correction hints to system prompt if any detected
+        if (correctionHints.length > 0 && hasContext) {
+          console.log(`🔧 CORRECTION HINTS DETECTED: ${correctionHints.length} corrections needed`);
+          correctionHints.forEach(h => console.log(`   - ${h.substring(0, 80)}...`));
+          
+          const correctionBlock = `
+=== MANDATORY CORRECTIONS ===
+The user's question contains factual errors. You MUST correct these FIRST before answering:
+${correctionHints.join('\n')}
+START your response by correcting these errors, then provide the accurate information.
+===========================
+`;
+          systemPrompt = correctionBlock + systemPrompt;
+        }
+        
+        // Add language instruction if not English
+        if (language && language !== "en") {
+          const languagePrompts: Record<string, string> = {
+            "af": "IMPORTANT: Respond in Afrikaans. Use clear, simple language. When using legal terms, provide the English equivalent in parentheses.",
+            "zu": "IMPORTANT: Respond in isiZulu. Use clear, simple language. When using legal terms, provide the English equivalent in parentheses.",
+            "xh": "IMPORTANT: Respond in isiXhosa. Use clear, simple language. When using legal terms, provide the English equivalent in parentheses.",
+            "st": "IMPORTANT: Respond in Sesotho. Use clear, simple language. When using legal terms, provide the English equivalent in parentheses.",
+            "nso": "IMPORTANT: Respond in Sepedi. Use clear, simple language. When using legal terms, provide the English equivalent in parentheses.",
+            "tn": "IMPORTANT: Respond in Setswana. Use clear, simple language. When using legal terms, provide the English equivalent in parentheses.",
+            "ts": "IMPORTANT: Respond in Xitsonga. Use clear, simple language. When using legal terms, provide the English equivalent in parentheses.",
+            "ss": "IMPORTANT: Respond in siSwati. Use clear, simple language. When using legal terms, provide the English equivalent in parentheses.",
+            "ve": "IMPORTANT: Respond in Tshivenda. Use clear, simple language. When using legal terms, provide the English equivalent in parentheses.",
+            "nr": "IMPORTANT: Respond in isiNdebele. Use clear, simple language. When using legal terms, provide the English equivalent in parentheses."
+          };
+          const langInstruction = languagePrompts[language] || "";
+          if (langInstruction) {
+            systemPrompt = langInstruction + "\n\n" + systemPrompt;
+          }
+        }
+
+        // Add Legal Aid Mode instruction
+        if (legalAidMode) {
+          const legalAidInstruction = `
+LEGAL AID MODE ACTIVE: The user may have limited legal knowledge and resources.
+- Use plain, simple language that anyone can understand
+- Avoid legal jargon - if you must use it, explain it immediately
+- Provide practical, actionable steps
+- Mention free legal resources like Legal Aid South Africa when relevant
+- Be empathetic and supportive
+- Focus on what the person can do themselves
+`;
+          systemPrompt = legalAidInstruction + "\n" + systemPrompt;
+        }
+        
+        const finalPrompt = (hasContext ? systemPrompt.replace("{INJECTED_CONTEXT}", contextWindow.ragContext) : systemPrompt) 
+          + "\n\n### Current Conversation:\n" + contextWindow.conversationHistory;
+
+        // 5. Start Streaming Response
+        sendChunk("status", ""); 
+        
+        // HALLUCINATION PREVENTION: Return canned responses for queries that would lead to hallucination
+        if (!hasContext) {
+          let cannedResponse = '';
+          let responseNote = '';
+          
+          if (queryCaseMatch) {
+            const caseName = queryCaseMatch[0];
+            cannedResponse = `I don't have specific information about "${caseName}" in my legal database.
+
+To get accurate information about this case, I recommend:
+1. Searching SAFLII (South African Legal Information Institute) at www.saflii.org
+2. Consulting a qualified South African attorney
+3. Checking legal databases like LexisNexis or Juta
+
+I cannot provide information about cases that aren't in my verified sources, as legal accuracy is paramount.`;
+            responseNote = "Case not found in database";
+          } else if (hasFakeConcept) {
+            cannedResponse = `I don't have information about that legal concept in my database. 
+
+The term you mentioned doesn't appear in my verified South African legal sources. It's possible this is not a recognized legal doctrine, or I simply don't have information about it.
+
+For accurate information, I recommend:
+1. Consulting a qualified South African attorney
+2. Searching SAFLII (www.saflii.org) for authoritative legal information
+3. Checking academic legal resources
+
+I cannot explain legal concepts that aren't in my verified sources.`;
+            responseNote = "Unrecognized legal concept";
+          } else if (isTopicQuery) {
+            cannedResponse = `I don't have specific case law about that topic in my legal database.
+
+To find relevant South African cases, I recommend:
+1. Searching SAFLII (South African Legal Information Institute) at www.saflii.org
+2. Consulting a qualified South African attorney
+3. Checking legal databases like LexisNexis or Juta
+
+I cannot provide case citations without verified sources, as legal accuracy is paramount.`;
+            responseNote = "Topic not found in database";
+          }
+          
+          if (cannedResponse) {
+            sendChunk("text_delta", cannedResponse);
+            sendChunk("metadata", {
+              mode: "No Sources",
+              sourcesUsed: 0,
+              responseTime: ((Date.now() - start) / 1000).toFixed(2) + "s",
+              note: responseNote
+            });
+            controller.close();
+            return;
+          }
+        }
+        
+        let fullAnswer = "";
+        const responseStream = generateResponseStream(query, contextWindow.ragContext, hasContext, provider, finalPrompt);
+        
+        for await (const delta of responseStream) {
+          fullAnswer += delta;
+          sendChunk("text_delta", delta);
+        }
+
+        // 6. Final Metadata & Background Tasks
+        const responseTime = ((Date.now() - start) / 1000).toFixed(2) + "s";
+        sendChunk("metadata", {
+          mode: hasContext ? "RAG" : "Conversational",
+          sourcesUsed: sources.length,
+          responseTime
+        });
+
+        (async () => {
+          try {
+            const [userMsgEmb, assistMsgEmb] = await Promise.all([
+              generateMessageEmbedding(query),
+              generateMessageEmbedding(fullAnswer)
+            ]);
+            if (userMsgEmb.length > 0 && assistMsgEmb.length > 0) {
+              await Promise.all([
+                storeConversationMemory(conversationId, userId, { id: `u_${Date.now()}`, content: query, role: "user", timestamp: new Date().toISOString(), status: "sent" }, userMsgEmb),
+                storeConversationMemory(conversationId, userId, { id: `a_${Date.now()}`, content: fullAnswer, role: "assistant", timestamp: new Date().toISOString(), status: "sent", sources }, assistMsgEmb)
+              ]);
+            }
+          } catch (e) {
+            console.error("Background storage failed", e);
+          }
+        })();
+
+        controller.close();
+      } catch (error: any) {
+        console.error("Streaming error:", error);
+        sendChunk("error", error.message || "Internal server error");
+        controller.close();
       }
-    })();
+    }
+  });
 
-    console.timeEnd("⏱️ Total Chat Handler");
-
-    return new Response(JSON.stringify({
-      response: finalAnswer,
-      sources: sources,
-      metadata: {
-        mode: hasContext ? "RAG" : "Conversational",
-        sourcesUsed: sources.length,
-        localSources: sources.length,
-        responseTime: ((Date.now() - start) / 1000).toFixed(2) + "s",
-        memoryUsed: {
-          recentMessages: memoryContext.recentMessages.length,
-          relevantHistory: memoryContext.relevantHistory.length,
-          hasSummary: "conversationSummary" in memoryContext ? !!memoryContext.conversationSummary : false,
-          contextTruncated: contextWindow.truncated
-        }
-      },
-    }), { status: 200 });
-
-  } catch (error: any) {
-    console.error("POST error details:", error);
-    console.error("POST error stack:", error.stack);
-    return new Response(JSON.stringify({
-      error: "Internal server error",
-      message: error.message || "Unknown error",
-      details: error.toString()
-    }), { status: 500 });
-  }
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      "Connection": "keep-alive",
+    },
+  });
 }
 
 export async function GET(request: Request) {

@@ -74,7 +74,7 @@ export const WarpBackground = ({
         {beams.map((beam, i) => (
           <div
             key={i}
-            className="absolute top-0 h-full w-px bg-linear-to-b from-transparent via-blue-500/50 to-transparent"
+            className="absolute top-0 h-full w-px bg-gradient-to-b from-transparent via-blue-500/50 to-transparent"
             style={{
               left: beam.left,
               animation: `beam ${beam.duration} linear infinite`,

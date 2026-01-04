@@ -1,0 +1,42 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e7]:
+      - generic [ref=e8]:
+        - link "Exit Tools" [ref=e10] [cursor=pointer]:
+          - /url: /
+          - button "Exit Tools" [ref=e11]:
+            - img
+            - generic [ref=e12]: Exit Tools
+        - generic [ref=e13]:
+          - img [ref=e15]
+          - generic [ref=e19]:
+            - generic [ref=e20]: DocketDive
+            - generic [ref=e21]: Legal Suite
+    - main [ref=e22]:
+      - generic [ref=e24]:
+        - generic [ref=e27]:
+          - img [ref=e29]
+          - generic [ref=e34]:
+            - heading "Clause Auditor" [level=1] [ref=e35]
+            - paragraph [ref=e36]: Audit contracts for missing or risky legal provisions
+        - generic [ref=e41]:
+          - heading "Document Submission" [level=3] [ref=e44]
+          - generic [ref=e45]:
+            - generic [ref=e48] [cursor=pointer]:
+              - img [ref=e50]
+              - paragraph [ref=e54]: Click to upload document
+            - generic [ref=e55]: or input manually
+            - generic [ref=e58]:
+              - generic [ref=e60]: Contract Content
+              - textbox "Paste the full contract text here..." [active] [ref=e61]: EMPLOYMENT AGREEMENT This agreement is made between John Doe and Acme Corp. The employee shall receive a monthly salary of R50,000. The notice period shall be 30 days.
+              - paragraph [ref=e63]: 209 Characters
+          - button "Audit Entire Contract" [ref=e64]:
+            - img
+            - text: Audit Entire Contract
+  - button "Open Next.js Dev Tools" [ref=e70] [cursor=pointer]:
+    - img [ref=e71]
+  - alert [ref=e74]
+```

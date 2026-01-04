@@ -1,0 +1,260 @@
+{
+  "ubuntuPrinciples": {
+    "description": "Ubuntu is a South African philosophy emphasizing human dignity, community, and interconnectedness. It has been recognized by the Constitutional Court as foundational to South African jurisprudence.",
+    "coreValues": [
+      {
+        "id": "human_dignity",
+        "name": "Human Dignity (Isithunzi)",
+        "description": "The inherent worth of every person, central to Ubuntu and Section 10 of the Constitution",
+        "keywords": ["dignity", "isithunzi", "worth", "respect", "human value"],
+        "constitutionalSection": "Section 10"
+      },
+      {
+        "id": "community",
+        "name": "Community (Umphakathi)",
+        "description": "The individual exists through the community - 'I am because we are'",
+        "keywords": ["community", "umphakathi", "collective", "society", "togetherness"],
+        "constitutionalSection": "Preamble"
+      },
+      {
+        "id": "compassion",
+        "name": "Compassion (Ububele)",
+        "description": "Empathy and care for others, especially the vulnerable",
+        "keywords": ["compassion", "ububele", "empathy", "care", "kindness"],
+        "constitutionalSection": "Section 27"
+      },
+      {
+        "id": "reconciliation",
+        "name": "Reconciliation (Ukubuyisana)",
+        "description": "Healing divisions and restoring relationships, foundational to post-apartheid SA",
+        "keywords": ["reconciliation", "ukubuyisana", "healing", "restoration", "forgiveness"],
+        "constitutionalSection": "Preamble"
+      },
+      {
+        "id": "restorative_justice",
+        "name": "Restorative Justice",
+        "description": "Focus on healing harm rather than punishment, influenced by Ubuntu",
+        "keywords": ["restorative", "rehabilitation", "healing", "repair", "restoration"],
+        "constitutionalSection": "Section 35"
+      }
+    ],
+    "landmarkCases": [
+      {
+        "name": "S v Makwanyane",
+        "citation": "1995 (3) SA 391 (CC)",
+        "year": 1995,
+        "significance": "First major CC case to invoke Ubuntu, abolishing the death penalty",
+        "ubuntuQuote": "Ubuntu translates as humaneness. It expresses itself in umuntu ngumuntu ngabantu, describing the significance of group solidarity.",
+        "judge": "Mokgoro J"
+      },
+      {
+        "name": "Port Elizabeth Municipality v Various Occupiers",
+        "citation": "2005 (1) SA 217 (CC)",
+        "year": 2005,
+        "significance": "Applied Ubuntu to eviction cases, requiring consideration of human dignity",
+        "ubuntuQuote": "The spirit of Ubuntu, part of the deep cultural heritage of the majority of the population, suffuses the whole constitutional order.",
+        "judge": "Sachs J"
+      },
+      {
+        "name": "Dikoko v Mokhatla",
+        "citation": "2006 (6) SA 235 (CC)",
+        "year": 2006,
+        "significance": "Applied Ubuntu to defamation remedies, favoring apology over damages",
+        "ubuntuQuote": "Ubuntu emphasises the communal nature of society and 'carries in it the ideas of humaneness, social justice and fairness'.",
+        "judge": "Mokgoro J"
+      },
+      {
+        "name": "Afri-Forum v Malema",
+        "citation": "2011 (6) SA 240 (EqC)",
+        "year": 2011,
+        "significance": "Applied Ubuntu in hate speech context",
+        "ubuntuQuote": "Ubuntu is recognised as being an important source of law within the context of strained or broken relationships.",
+        "judge": "Lamont J"
+      },
+      {
+        "name": "MEC for Education: KwaZulu-Natal v Pillay",
+        "citation": "2008 (1) SA 474 (CC)",
+        "year": 2008,
+        "significance": "Applied Ubuntu to religious and cultural rights in schools",
+        "ubuntuQuote": "Ubuntu is a culture which places some emphasis on communality and on the interdependence of the members of a community.",
+        "judge": "Langa CJ"
+      }
+    ]
+  },
+  "constitutionalPrinciples": {
+    "foundingValues": [
+      {
+        "id": "human_dignity",
+        "section": "Section 1(a), Section 10",
+        "name": "Human Dignity",
+        "description": "Everyone has inherent dignity and the right to have their dignity respected and protected"
+      },
+      {
+        "id": "equality",
+        "section": "Section 1(a), Section 9",
+        "name": "Equality",
+        "description": "Everyone is equal before the law and has the right to equal protection and benefit of the law"
+      },
+      {
+        "id": "human_rights",
+        "section": "Section 1(a)",
+        "name": "Human Rights and Freedoms",
+        "description": "The advancement of human rights and freedoms"
+      },
+      {
+        "id": "non_racialism",
+        "section": "Section 1(b)",
+        "name": "Non-racialism and Non-sexism",
+        "description": "A society based on democratic values, social justice and fundamental human rights"
+      },
+      {
+        "id": "supremacy",
+        "section": "Section 1(c), Section 2",
+        "name": "Constitutional Supremacy",
+        "description": "The Constitution is the supreme law; any law or conduct inconsistent with it is invalid"
+      },
+      {
+        "id": "rule_of_law",
+        "section": "Section 1(c)",
+        "name": "Rule of Law",
+        "description": "The supremacy of the Constitution and the rule of law"
+      },
+      {
+        "id": "democracy",
+        "section": "Section 1(d)",
+        "name": "Multi-party Democracy",
+        "description": "Universal adult suffrage, regular elections, and a multi-party system"
+      },
+      {
+        "id": "accountability",
+        "section": "Section 1(d)",
+        "name": "Accountability and Transparency",
+        "description": "A government that is accountable, responsive and open"
+      }
+    ],
+    "billOfRights": {
+      "description": "Chapter 2 of the Constitution - the cornerstone of democracy in South Africa",
+      "keyRights": [
+        { "section": "Section 9", "name": "Equality" },
+        { "section": "Section 10", "name": "Human Dignity" },
+        { "section": "Section 11", "name": "Life" },
+        { "section": "Section 12", "name": "Freedom and Security of the Person" },
+        { "section": "Section 14", "name": "Privacy" },
+        { "section": "Section 15", "name": "Freedom of Religion, Belief and Opinion" },
+        { "section": "Section 16", "name": "Freedom of Expression" },
+        { "section": "Section 17", "name": "Assembly, Demonstration, Picket and Petition" },
+        { "section": "Section 18", "name": "Freedom of Association" },
+        { "section": "Section 21", "name": "Freedom of Movement and Residence" },
+        { "section": "Section 22", "name": "Freedom of Trade, Occupation and Profession" },
+        { "section": "Section 23", "name": "Labour Relations" },
+        { "section": "Section 24", "name": "Environment" },
+        { "section": "Section 25", "name": "Property" },
+        { "section": "Section 26", "name": "Housing" },
+        { "section": "Section 27", "name": "Health Care, Food, Water and Social Security" },
+        { "section": "Section 28", "name": "Children" },
+        { "section": "Section 29", "name": "Education" },
+        { "section": "Section 30", "name": "Language and Culture" },
+        { "section": "Section 31", "name": "Cultural, Religious and Linguistic Communities" },
+        { "section": "Section 32", "name": "Access to Information" },
+        { "section": "Section 33", "name": "Just Administrative Action" },
+        { "section": "Section 34", "name": "Access to Courts" },
+        { "section": "Section 35", "name": "Arrested, Detained and Accused Persons" }
+      ]
+    }
+  },
+  "courtHierarchy": {
+    "description": "South African court hierarchy for determining binding vs persuasive authority",
+    "courts": [
+      {
+        "id": "cc",
+        "name": "Constitutional Court",
+        "abbreviation": "CC",
+        "safliiCode": "ZACC",
+        "bindingOn": ["all"],
+        "weight": 10,
+        "description": "Highest court in constitutional matters, decisions bind all other courts"
+      },
+      {
+        "id": "sca",
+        "name": "Supreme Court of Appeal",
+        "abbreviation": "SCA",
+        "safliiCode": "ZASCA",
+        "bindingOn": ["high_courts", "magistrates", "specialized"],
+        "weight": 9,
+        "description": "Highest court in non-constitutional matters, binds all courts except CC"
+      },
+      {
+        "id": "hc",
+        "name": "High Courts",
+        "abbreviation": "HC",
+        "safliiCodes": ["ZAGPJHC", "ZAWCHC", "ZAKZDHC", "ZAECGHC", "ZAFSHC", "ZANWHC", "ZALMPPHC", "ZAECMHC", "ZANCHC"],
+        "bindingOn": ["magistrates"],
+        "weight": 7,
+        "description": "Provincial divisions, bind magistrates courts in their jurisdiction"
+      },
+      {
+        "id": "lac",
+        "name": "Labour Appeal Court",
+        "abbreviation": "LAC",
+        "safliiCode": "ZALAC",
+        "bindingOn": ["labour_court", "ccma"],
+        "weight": 8,
+        "description": "Highest court in labour matters"
+      },
+      {
+        "id": "lc",
+        "name": "Labour Court",
+        "abbreviation": "LC",
+        "safliiCode": "ZALC",
+        "bindingOn": ["ccma"],
+        "weight": 6,
+        "description": "Specialized court for labour disputes"
+      },
+      {
+        "id": "land_claims",
+        "name": "Land Claims Court",
+        "abbreviation": "LCC",
+        "safliiCode": "ZALCC",
+        "bindingOn": [],
+        "weight": 6,
+        "description": "Specialized court for land restitution claims"
+      },
+      {
+        "id": "competition",
+        "name": "Competition Appeal Court",
+        "abbreviation": "CAC",
+        "safliiCode": "ZACAC",
+        "bindingOn": ["competition_tribunal"],
+        "weight": 7,
+        "description": "Appeals from Competition Tribunal"
+      }
+    ]
+  },
+  "queryDetection": {
+    "ubuntuKeywords": [
+      "ubuntu", "umuntu ngumuntu ngabantu", "humaneness", "human dignity", "isithunzi",
+      "community values", "african jurisprudence", "restorative justice", "reconciliation",
+      "communal", "collective rights", "african philosophy", "indigenous law"
+    ],
+    "constitutionalKeywords": [
+      "constitution", "constitutional", "bill of rights", "fundamental rights",
+      "section 9", "section 10", "section 11", "equality", "dignity", "life",
+      "constitutional court", "cc judgment", "founding values", "supremacy",
+      "limitation clause", "section 36", "proportionality"
+    ],
+    "rightsKeywords": {
+      "equality": ["equality", "discrimination", "unfair", "section 9", "equal protection"],
+      "dignity": ["dignity", "degrading", "humiliating", "section 10", "inherent worth"],
+      "life": ["life", "death penalty", "right to life", "section 11"],
+      "freedom": ["freedom", "liberty", "detention", "arrest", "section 12"],
+      "privacy": ["privacy", "private", "surveillance", "section 14"],
+      "expression": ["expression", "speech", "press", "media", "section 16"],
+      "property": ["property", "expropriation", "land", "section 25"],
+      "housing": ["housing", "eviction", "shelter", "section 26"],
+      "socioeconomic": ["health", "food", "water", "social security", "section 27"],
+      "children": ["children", "child", "minor", "best interests", "section 28"],
+      "education": ["education", "school", "learning", "section 29"],
+      "labour": ["labour", "labor", "worker", "employee", "strike", "section 23"]
+    }
+  }
+}

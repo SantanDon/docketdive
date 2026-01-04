@@ -1,0 +1,95 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e1]:
+  - generic [ref=e11]:
+    - banner [ref=e12]:
+      - generic [ref=e13]:
+        - generic [ref=e14]:
+          - img "DocketDive" [ref=e16]
+          - generic [ref=e17]:
+            - heading "DocketDive" [level=1] [ref=e18]
+            - paragraph [ref=e19]:
+              - img [ref=e20]
+              - text: Legal AI
+        - generic [ref=e24]:
+          - button "Legal Tools" [ref=e25]:
+            - generic [ref=e26]:
+              - img
+            - generic [ref=e27]: Legal Tools
+          - button "English" [ref=e29]:
+            - img
+            - generic [ref=e30]: English
+            - img
+          - button "Toggle theme" [ref=e32]:
+            - generic [ref=e33]:
+              - img
+          - button "Upload document" [ref=e34]:
+            - img
+          - button "Sign in" [ref=e35]:
+            - generic [ref=e36]:
+              - img
+    - generic [ref=e38]:
+      - button "Select Mode" [ref=e41]:
+        - generic [ref=e42]:
+          - img
+        - generic [ref=e43]: Select Mode
+      - generic [ref=e45]:
+        - img "DocketDive Logo" [ref=e49]
+        - generic [ref=e51]:
+          - heading "Good morning" [level=1] [ref=e52]
+          - paragraph [ref=e53]: How can I help with your legal question?
+        - generic [ref=e54]:
+          - button "Constitutional Law What makes a will legally binding in South Africa?" [ref=e55]:
+            - generic [ref=e56]:
+              - img [ref=e58]
+              - generic [ref=e62]:
+                - heading "Constitutional Law" [level=3] [ref=e63]
+                - paragraph [ref=e64]: What makes a will legally binding in South Africa?
+          - button "Legal Principles How does ubuntu shape our constitutional democracy?" [ref=e65]:
+            - generic [ref=e66]:
+              - img [ref=e68]
+              - generic [ref=e74]:
+                - heading "Legal Principles" [level=3] [ref=e75]
+                - paragraph [ref=e76]: How does ubuntu shape our constitutional democracy?
+          - button "Consumer Rights What are my rights under the Consumer Protection Act?" [ref=e77]:
+            - generic [ref=e78]:
+              - img [ref=e80]
+              - generic [ref=e82]:
+                - heading "Consumer Rights" [level=3] [ref=e83]
+                - paragraph [ref=e84]: What are my rights under the Consumer Protection Act?
+          - button "Property Law Tenant vs Landlord rights under the Rental Housing Act" [ref=e85]:
+            - generic [ref=e86]:
+              - img [ref=e88]
+              - generic [ref=e91]:
+                - heading "Property Law" [level=3] [ref=e92]
+                - paragraph [ref=e93]: Tenant vs Landlord rights under the Rental Housing Act
+        - paragraph [ref=e94]: Press Enter to send
+    - generic [ref=e97]:
+      - generic [ref=e98]:
+        - textbox "Message input" [ref=e99]:
+          - /placeholder: Ask a legal question...
+        - button "Send message" [disabled] [ref=e101]:
+          - img [ref=e102]
+      - paragraph [ref=e105]:
+        - img [ref=e106]
+        - generic [ref=e109]: AI can make mistakes. Verify important legal information.
+  - button "Open Next.js Dev Tools" [ref=e115] [cursor=pointer]:
+    - generic [ref=e118]:
+      - text: Compiling
+      - generic [ref=e119]:
+        - generic [ref=e120]: .
+        - generic [ref=e121]: .
+        - generic [ref=e122]: .
+  - alert [ref=e123]
+  - img [ref=e124]
+  - dialog "Welcome to DocketDive! 🎉" [active] [ref=e126]:
+    - generic [ref=e127]:
+      - banner [ref=e128]:
+        - heading "Welcome to DocketDive! 🎉" [level=3] [ref=e129]
+        - button "Close Tour" [ref=e130]: ×
+      - generic [ref=e131]: Your AI-powered South African legal assistant. Let me show you around.
+      - contentinfo [ref=e132]:
+        - button "Skip Tour" [ref=e133] [cursor=pointer]
+        - button "Let's Go!" [ref=e134] [cursor=pointer]
+```

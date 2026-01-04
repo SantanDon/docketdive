@@ -1,0 +1,67 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e1]:
+  - generic [ref=e11]:
+    - banner [ref=e12]:
+      - generic [ref=e13]:
+        - generic [ref=e14]:
+          - img "DocketDive" [ref=e16]
+          - generic [ref=e17]:
+            - heading "DocketDive" [level=1] [ref=e18]
+            - paragraph [ref=e19]:
+              - img [ref=e20]
+              - text: Legal AI
+        - generic [ref=e24]:
+          - button "Legal Tools" [ref=e25]:
+            - generic [ref=e26]:
+              - img
+            - generic [ref=e27]: Legal Tools
+          - button "English" [ref=e29]:
+            - img
+            - generic [ref=e30]: English
+            - img
+          - button "Toggle theme" [ref=e32]:
+            - generic [ref=e33]:
+              - img
+          - button "Upload document" [ref=e34]:
+            - img
+          - button "Sign in" [ref=e35]:
+            - generic [ref=e36]:
+              - img
+    - generic [ref=e38]:
+      - button "Select Mode" [ref=e41]:
+        - generic [ref=e42]:
+          - img
+        - generic [ref=e43]: Select Mode
+      - log "Chat messages" [ref=e44]:
+        - generic [ref=e45]:
+          - generic [ref=e46]:
+            - generic [ref=e47]:
+              - paragraph [ref=e49]: What are the requirements for a valid contract in South Africa?
+              - paragraph [ref=e50]: 09:19 AM
+            - img [ref=e52]
+          - img [ref=e57]
+    - generic [ref=e69]:
+      - generic [ref=e70]:
+        - textbox "Message input" [disabled] [ref=e71]:
+          - /placeholder: Ask a legal question...
+        - button "Stop generation" [ref=e73]:
+          - img [ref=e74]
+      - paragraph [ref=e76]:
+        - img [ref=e77]
+        - generic [ref=e80]: AI can make mistakes. Verify important legal information.
+  - button "Open Next.js Dev Tools" [ref=e86] [cursor=pointer]:
+    - img [ref=e87]
+  - alert [ref=e90]
+  - img [ref=e91]
+  - dialog "Welcome to DocketDive! 🎉" [active] [ref=e93]:
+    - generic [ref=e94]:
+      - banner [ref=e95]:
+        - heading "Welcome to DocketDive! 🎉" [level=3] [ref=e96]
+        - button "Close Tour" [ref=e97]: ×
+      - generic [ref=e98]: Your AI-powered South African legal assistant. Let me show you around.
+      - contentinfo [ref=e99]:
+        - button "Skip Tour" [ref=e100] [cursor=pointer]
+        - button "Let's Go!" [ref=e101] [cursor=pointer]
+```
