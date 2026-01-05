@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { generateResponseStream } from '../utils/rag';
 import fs from 'fs';
 import path from 'path';
+import { withErrorHandling } from '../utils/route-handler';
 
 // ============================================
 // Types
@@ -123,7 +124,7 @@ Generate the document now:`;
 // POST /api/drafting - Generate draft
 // ============================================
 
-export async function POST(request: NextRequest) {
+const draftingPostHandler = async (request: Request) => {
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream({
@@ -211,13 +212,15 @@ export async function POST(request: NextRequest) {
       'Connection': 'keep-alive',
     },
   });
-}
+};
+
+export const POST = withErrorHandling(draftingPostHandler);
 
 // ============================================
 // GET /api/drafting/templates - Get templates
 // ============================================
 
-export async function GET(request: NextRequest) {
+const draftingGetHandler = async (request: Request) => {
   try {
     const data = loadTemplates();
     const templates = data?.templates || [];
@@ -243,4 +246,6 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+};
+
+export const GET = withErrorHandling(draftingGetHandler);

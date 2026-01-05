@@ -16,6 +16,7 @@ import fs from 'fs';
 import path from 'path';
 import { generateResponseStream } from '../utils/rag';
 import type { ClauseCategory } from '@/types/legal-tools';
+import { withErrorHandling } from '../utils/route-handler';
 
 // ============================================
 // Types
@@ -544,180 +545,167 @@ function detectRiskyClause(content: string): RiskyClause[] {
 // POST /api/audit - Audit contract
 // ============================================
 
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json();
-    const { content, documentId = `doc_${Date.now()}`, contractType: specifiedType, comprehensiveAudit = false } = body;
+const auditPostHandler = async (request: Request) => {
+  const body = await request.json();
+  const { content, documentId = `doc_${Date.now()}`, contractType: specifiedType, comprehensiveAudit = false } = body;
 
-    if (!content || typeof content !== 'string') {
-      return NextResponse.json(
-        { error: 'Contract content is required' },
-        { status: 400 }
-      );
-    }
-
-    // Classify contract type
-    let contractType: ContractType;
-    let typeConfidence: number;
-
-    if (specifiedType && ['employment', 'lease_residential', 'service_agreement', 'nda', 'sale_agreement', 'loan_agreement'].includes(specifiedType)) {
-      contractType = specifiedType as ContractType;
-      typeConfidence = 1.0;
-    } else {
-      const classification = await classifyContractType(content);
-      contractType = classification.type;
-      typeConfidence = classification.confidence;
-    }
-
-    // Get standard clauses for this type + enhanced clauses for comprehensive audit
-    let clausesToAudit: StandardClause[];
-    if (comprehensiveAudit) {
-      // Use all 18 enhanced clause categories
-      clausesToAudit = getAllEnhancedClauses();
-    } else {
-      // Use type-specific clauses from file
-      clausesToAudit = getStandardClauses(contractType);
-      // If no file-based clauses, fall back to enhanced clauses
-      if (clausesToAudit.length === 0) {
-        clausesToAudit = getAllEnhancedClauses();
-      }
-    }
-
-    // Audit each clause
-    const clauseResults: ClauseAuditResult[] = clausesToAudit.map(clause => 
-      detectClause(content, clause)
-    );
-
-    // Detect risky clauses
-    const riskyClausesList = detectRiskyClause(content);
-
-    // Count unusual clauses
-    const unusualClausesCount = clauseResults.filter(c => c.unusualLanguage && c.unusualLanguage.length > 0).length;
-
-    // Calculate summary
-    const summary = {
-      critical: { present: 0, missing: 0 },
-      recommended: { present: 0, missing: 0 },
-      optional: { present: 0, missing: 0 },
-    };
-
-    for (const result of clauseResults) {
-      const category = result.importance;
-      if (result.status === 'present') {
-        summary[category].present++;
-      } else {
-        summary[category].missing++;
-      }
-    }
-
-    // Calculate overall score
-    const criticalWeight = 3;
-    const recommendedWeight = 2;
-    const optionalWeight = 1;
-
-    const totalPossible = 
-      (summary.critical.present + summary.critical.missing) * criticalWeight +
-      (summary.recommended.present + summary.recommended.missing) * recommendedWeight +
-      (summary.optional.present + summary.optional.missing) * optionalWeight;
-
-    const achieved = 
-      summary.critical.present * criticalWeight +
-      summary.recommended.present * recommendedWeight +
-      summary.optional.present * optionalWeight;
-
-    const overallScore = totalPossible > 0 ? Math.round((achieved / totalPossible) * 100) : 0;
-
-    // Generate recommendations
-    const recommendations: string[] = [];
-
-    if (summary.critical.missing > 0) {
-      recommendations.push(`⚠️ ${summary.critical.missing} critical clause(s) missing - these should be added immediately`);
-    }
-
-    if (summary.recommended.missing > 0) {
-      recommendations.push(`📝 ${summary.recommended.missing} recommended clause(s) missing - consider adding for better protection`);
-    }
-
-    if (riskyClausesList.length > 0) {
-      const highRisk = riskyClausesList.filter(r => r.riskLevel === 'high').length;
-      if (highRisk > 0) {
-        recommendations.push(`🚨 ${highRisk} high-risk clause(s) detected - review carefully before signing`);
-      }
-    }
-
-    if (unusualClausesCount > 0) {
-      recommendations.push(`⚡ ${unusualClausesCount} clause(s) contain unusual language - review for potential issues`);
-    }
-
-    if (typeConfidence < 0.6) {
-      recommendations.push(`❓ Contract type uncertain (${Math.round(typeConfidence * 100)}% confidence) - please verify the classification`);
-    }
-
-    const report: AuditReport = {
-      documentId,
-      contractType,
-      typeConfidence,
-      clauses: clauseResults,
-      riskyClauseCount: riskyClausesList.length,
-      overallScore,
-      summary,
-      recommendations,
-      unusualClausesCount,
-      generatedAt: new Date().toISOString(),
-    };
-
-    return NextResponse.json(report);
-
-  } catch (error: any) {
-    console.error('Audit error:', error);
+  if (!content || typeof content !== 'string') {
     return NextResponse.json(
-      { error: error.message || 'Audit failed' },
-      { status: 500 }
+      { error: 'Contract content is required' },
+      { status: 400 }
     );
   }
-}
+
+  // Classify contract type
+  let contractType: ContractType;
+  let typeConfidence: number;
+
+  if (specifiedType && ['employment', 'lease_residential', 'service_agreement', 'nda', 'sale_agreement', 'loan_agreement'].includes(specifiedType)) {
+    contractType = specifiedType as ContractType;
+    typeConfidence = 1.0;
+  } else {
+    const classification = await classifyContractType(content);
+    contractType = classification.type;
+    typeConfidence = classification.confidence;
+  }
+
+  // Get standard clauses for this type + enhanced clauses for comprehensive audit
+  let clausesToAudit: StandardClause[];
+  if (comprehensiveAudit) {
+    // Use all 18 enhanced clause categories
+    clausesToAudit = getAllEnhancedClauses();
+  } else {
+    // Use type-specific clauses from file
+    clausesToAudit = getStandardClauses(contractType);
+    // If no file-based clauses, fall back to enhanced clauses
+    if (clausesToAudit.length === 0) {
+      clausesToAudit = getAllEnhancedClauses();
+    }
+  }
+
+  // Audit each clause
+  const clauseResults: ClauseAuditResult[] = clausesToAudit.map(clause => 
+    detectClause(content, clause)
+  );
+
+  // Detect risky clauses
+  const riskyClausesList = detectRiskyClause(content);
+
+  // Count unusual clauses
+  const unusualClausesCount = clauseResults.filter(c => c.unusualLanguage && c.unusualLanguage.length > 0).length;
+
+  // Calculate summary
+  const summary = {
+    critical: { present: 0, missing: 0 },
+    recommended: { present: 0, missing: 0 },
+    optional: { present: 0, missing: 0 },
+  };
+
+  for (const result of clauseResults) {
+    const category = result.importance;
+    if (result.status === 'present') {
+      summary[category].present++;
+    } else {
+      summary[category].missing++;
+    }
+  }
+
+  // Calculate overall score
+  const criticalWeight = 3;
+  const recommendedWeight = 2;
+  const optionalWeight = 1;
+
+  const totalPossible = 
+    (summary.critical.present + summary.critical.missing) * criticalWeight +
+    (summary.recommended.present + summary.recommended.missing) * recommendedWeight +
+    (summary.optional.present + summary.optional.missing) * optionalWeight;
+
+  const achieved = 
+    summary.critical.present * criticalWeight +
+    summary.recommended.present * recommendedWeight +
+    summary.optional.present * optionalWeight;
+
+  const overallScore = totalPossible > 0 ? Math.round((achieved / totalPossible) * 100) : 0;
+
+  // Generate recommendations
+  const recommendations: string[] = [];
+
+  if (summary.critical.missing > 0) {
+    recommendations.push(`⚠️ ${summary.critical.missing} critical clause(s) missing - these should be added immediately`);
+  }
+
+  if (summary.recommended.missing > 0) {
+    recommendations.push(`📝 ${summary.recommended.missing} recommended clause(s) missing - consider adding for better protection`);
+  }
+
+  if (riskyClausesList.length > 0) {
+    const highRisk = riskyClausesList.filter(r => r.riskLevel === 'high').length;
+    if (highRisk > 0) {
+      recommendations.push(`🚨 ${highRisk} high-risk clause(s) detected - review carefully before signing`);
+    }
+  }
+
+  if (unusualClausesCount > 0) {
+    recommendations.push(`⚡ ${unusualClausesCount} clause(s) contain unusual language - review for potential issues`);
+  }
+
+  if (typeConfidence < 0.6) {
+    recommendations.push(`❓ Contract type uncertain (${Math.round(typeConfidence * 100)}% confidence) - please verify the classification`);
+  }
+
+  const report: AuditReport = {
+    documentId,
+    contractType,
+    typeConfidence,
+    clauses: clauseResults,
+    riskyClauseCount: riskyClausesList.length,
+    overallScore,
+    summary,
+    recommendations,
+    unusualClausesCount,
+    generatedAt: new Date().toISOString(),
+  };
+
+  return NextResponse.json(report);
+};
+
+export const POST = withErrorHandling(auditPostHandler);
 
 // ============================================
 // GET /api/audit/clauses - Get standard clauses
 // ============================================
 
-export async function GET(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const type = searchParams.get('type') as ContractType | null;
+const auditGetHandler = async (request: Request) => {
+  const { searchParams } = new URL(request.url);
+  const type = searchParams.get('type') as ContractType | null;
 
-    const { contractTypes } = loadClauses();
+  const { contractTypes } = loadClauses();
 
-    if (type) {
-      const typeInfo = contractTypes[type];
-      if (!typeInfo) {
-        return NextResponse.json(
-          { error: `Unknown contract type: ${type}` },
-          { status: 400 }
-        );
-      }
-      return NextResponse.json({
-        type,
-        name: typeInfo.name,
-        description: typeInfo.description,
-        clauses: typeInfo.clauses,
-      });
+  if (type) {
+    const typeInfo = contractTypes[type];
+    if (!typeInfo) {
+      return NextResponse.json(
+        { error: `Unknown contract type: ${type}` },
+        { status: 400 }
+      );
     }
-
-    // Return all types
     return NextResponse.json({
-      types: Object.entries(contractTypes).map(([key, value]: [string, any]) => ({
-        id: key,
-        name: value.name,
-        description: value.description,
-        clauseCount: value.clauses.length,
-      })),
+      type,
+      name: typeInfo.name,
+      description: typeInfo.description,
+      clauses: typeInfo.clauses,
     });
-
-  } catch (error: any) {
-    return NextResponse.json(
-      { error: error.message || 'Failed to load clauses' },
-      { status: 500 }
-    );
   }
-}
+
+  // Return all types
+  return NextResponse.json({
+    types: Object.entries(contractTypes).map(([key, value]: [string, any]) => ({
+      id: key,
+      name: value.name,
+      description: value.description,
+      clauseCount: value.clauses.length,
+    })),
+  });
+};
+
+export const GET = withErrorHandling(auditGetHandler);

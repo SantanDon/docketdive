@@ -2,8 +2,12 @@ import "./global.css";
 import { ThemeProvider } from "next-themes";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { PostHogProvider } from "./providers/PostHogProvider";
+import FeedbackPopup from "../components/FeedbackPopup";
+import { ErrorProvider } from "./context/ErrorContext";
+import { ToastProvider } from "../components/ui/Toast";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { Suspense } from "react";
 
 export const metadata: Metadata = {
   title: "DocketDive - South African Legal AI Assistant",
@@ -28,17 +32,38 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       </head>
       <body>
         <ErrorBoundary>
-          <PostHogProvider>
-            <ThemeProvider
-              attribute="class"
-              defaultTheme="system"
-              enableSystem
-            >
-              {children}
-            </ThemeProvider>
-          </PostHogProvider>
-        </ErrorBoundary>
-      </body>
-    </html>
-  );
-}
+          <ErrorProvider>
+            <ToastProvider>
+              <Suspense fallback={<div>Loading...</div>}>
+                <PostHogProvider>
+                  <ThemeProvider
+                    attribute="class"
+                    defaultTheme="system"
+                    enableSystem
+                  >
+                    {children}
+                    <FeedbackPopup />
+                    <footer className="bg-muted/50 border-t mt-16">
+                  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+                    <div className="text-center text-sm text-muted-foreground">
+                      <p className="mb-2">
+                        <strong>Disclaimer:</strong> DocketDive is still in development.
+                        While we strive for accuracy, please verify information with official legal sources.
+                        Feedback is greatly appreciated!
+                      </p>
+                      <p>
+                        Built with ❤️ for South African legal research
+                      </p>
+                    </div>
+                  </div>
+                </footer>
+                   </ThemeProvider>
+                 </PostHogProvider>
+                </Suspense>
+                </ToastProvider>
+                </ErrorProvider>
+                </ErrorBoundary>
+                </body>
+                </html>
+                );
+                }

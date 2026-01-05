@@ -5,6 +5,7 @@
 import { ChatGroq } from "@langchain/groq";
 import { ChatOllama } from "@langchain/ollama";
 import type { SimplifyRequest, SimplificationResult } from "@/types/legal-tools";
+import { withErrorHandling } from "../utils/route-handler";
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY?.trim();
 const OLLAMA_BASE_URL = (process.env.OLLAMA_BASE_URL || "http://localhost:11434").trim();
@@ -222,7 +223,7 @@ function extractFallbackJargon(response: string): Array<{term: string; definitio
   return jargon;
 }
 
-export async function POST(request: Request) {
+const simplifyPostHandler = async (request: Request) => {
   const start = Date.now();
   
   try {
@@ -272,9 +273,11 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
-}
+};
 
-export async function GET() {
+export const POST = withErrorHandling(simplifyPostHandler);
+
+const simplifyGetHandler = async () => {
   return Response.json({
     service: 'Document Simplification API',
     description: 'Convert legal documents to plain language',
@@ -286,4 +289,6 @@ export async function GET() {
       }
     }
   });
-}
+};
+
+export const GET = withErrorHandling(simplifyGetHandler);

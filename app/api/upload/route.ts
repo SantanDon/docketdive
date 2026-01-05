@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createRequire } from 'module';
+import { withErrorHandling } from '../utils/route-handler';
 
 export const dynamic = 'force-dynamic';
 const require = createRequire(import.meta.url);
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 
-export async function POST(request: NextRequest) {
+const uploadHandler = async (request: Request) => {
   const pdf = require('pdf-parse');
   const mammoth = require('mammoth');
   
@@ -145,4 +146,6 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+};
+
+export const POST = withErrorHandling(uploadHandler);

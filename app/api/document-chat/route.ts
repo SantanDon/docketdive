@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ChatGroq } from "@langchain/groq";
 import { ChatOllama } from "@langchain/ollama";
+import { withErrorHandling } from "../utils/route-handler";
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY?.trim();
 const OLLAMA_BASE_URL = (process.env.OLLAMA_BASE_URL || "http://localhost:11434").trim();
@@ -37,38 +38,37 @@ interface ConversationMessage {
   content: string;
 }
 
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json();
-    const { question, documentContent, conversationHistory = [] } = body;
+const documentChatPostHandler = async (request: Request) => {
+  const body = await request.json();
+  const { question, documentContent, conversationHistory = [] } = body;
 
-    if (!question || typeof question !== "string") {
-      return NextResponse.json(
-        { error: "Question is required" },
-        { status: 400 }
-      );
-    }
+  if (!question || typeof question !== "string") {
+    return NextResponse.json(
+      { error: "Question is required" },
+      { status: 400 }
+    );
+  }
 
-    if (!documentContent || typeof documentContent !== "string") {
-      return NextResponse.json(
-        { error: "Document content is required" },
-        { status: 400 }
-      );
-    }
+  if (!documentContent || typeof documentContent !== "string") {
+    return NextResponse.json(
+      { error: "Document content is required" },
+      { status: 400 }
+    );
+  }
 
-    // Truncate document if too long (keep first ~15000 chars for context)
-    const maxDocLength = 15000;
-    const truncatedDoc = documentContent.length > maxDocLength
-      ? documentContent.substring(0, maxDocLength) + "\n\n[Document truncated for processing...]"
-      : documentContent;
+  // Truncate document if too long (keep first ~15000 chars for context)
+  const maxDocLength = 15000;
+  const truncatedDoc = documentContent.length > maxDocLength
+    ? documentContent.substring(0, maxDocLength) + "\n\n[Document truncated for processing...]"
+    : documentContent;
 
-    // Build conversation context from last 6 messages
-    const recentHistory = conversationHistory.slice(-6);
-    const conversationContext = recentHistory
-      .map((msg: ConversationMessage) => `${msg.role === "user" ? "User" : "Assistant"}: ${msg.content}`)
-      .join("\n\n");
+  // Build conversation context from last 6 messages
+  const recentHistory = conversationHistory.slice(-6);
+  const conversationContext = recentHistory
+    .map((msg: ConversationMessage) => `${msg.role === "user" ? "User" : "Assistant"}: ${msg.content}`)
+    .join("\n\n");
 
-    const systemPrompt = `You are a helpful legal document assistant. Your role is to help users understand and analyze legal documents they've uploaded.
+  const systemPrompt = `You are a helpful legal document assistant. Your role is to help users understand and analyze legal documents they've uploaded.
 
 IMPORTANT GUIDELINES:
 1. Base your answers ONLY on the document content provided
@@ -84,47 +84,31 @@ DOCUMENT CONTENT:
 ${truncatedDoc}
 ---`;
 
-    const userPrompt = conversationContext 
-      ? `Previous conversation:\n${conversationContext}\n\nNew question: ${question}`
-      : question;
+  const userPrompt = conversationContext 
+    ? `Previous conversation:\n${conversationContext}\n\nNew question: ${question}`
+    : question;
 
-    const chatModel = getChatModel();
+  const chatModel = getChatModel();
 
-    const response = await Promise.race([
-      chatModel.invoke([
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ]),
-      new Promise((_, reject) => setTimeout(() => reject(new Error("Request timeout")), 45000))
-    ]) as any;
+  const response = await Promise.race([
+    chatModel.invoke([
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userPrompt },
+    ]),
+    new Promise((_, reject) => setTimeout(() => reject(new Error("Request timeout")), 45000))
+  ]) as any;
 
-    const answer = typeof response.content === "string"
-      ? response.content
-      : response.content?.map((c: any) => c.text || "").join("");
+  const answer = typeof response.content === "string"
+    ? response.content
+    : response.content?.map((c: any) => c.text || "").join("");
 
-    return NextResponse.json({
-      answer,
-      success: true,
-    });
+  return NextResponse.json({
+    answer,
+    success: true,
+  });
+};
 
-  } catch (error) {
-    console.error("Document chat error:", error);
-    
-    if (error instanceof Error) {
-      if (error.message.includes("timeout")) {
-        return NextResponse.json(
-          { error: "Request timed out. Please try a shorter question." },
-          { status: 504 }
-        );
-      }
-    }
-
-    return NextResponse.json(
-      { error: "Failed to process your question. Please try again." },
-      { status: 500 }
-    );
-  }
-}
+export const POST = withErrorHandling(documentChatPostHandler);
 
 export async function GET() {
   return NextResponse.json({

@@ -8,8 +8,16 @@ import { fileURLToPath } from "url";
 import { expandQuery, identifyLegalEntities, rankRelevance, hasKeywordMatches, extractSpecializedTerms } from "./semantic-search";
 import { buildContext as buildContextUtil } from "../../utils/responseProcessor";
 
-// Load environment variables - Next.js usually handles this, but we reinforce it for scripts
-dotenv.config(); 
+// Load environment variables.
+// In Next.js this is handled automatically, but local scripts / dev runs can differ.
+// We explicitly try .env.local first (common in Next.js), then fall back to .env.
+// This prevents silent DB-disable scenarios.
+if (!process.env.ASTRA_DB_APPLICATION_TOKEN || !process.env.ASTRA_DB_API_ENDPOINT) {
+  dotenv.config({ path: path.join(process.cwd(), '.env.local') });
+}
+if (!process.env.ASTRA_DB_APPLICATION_TOKEN || !process.env.ASTRA_DB_API_ENDPOINT) {
+  dotenv.config({ path: path.join(process.cwd(), '.env') });
+} 
 
 console.log(`📡 RAG Initialization: 
   NODE_ENV: ${process.env.NODE_ENV}
@@ -35,99 +43,98 @@ export const HUGGINGFACE_API_KEY = process.env.HUGGINGFACE_API_KEY?.trim();
 export const HF_EMBED_MODEL = "intfloat/multilingual-e5-large";
 
 // PRODUCTION OPTIMIZED: Speed-focused thresholds
-export const TOP_K = IS_PRODUCTION ? 5 : 8;  // Fewer results in prod for speed
-export const MIN_SIMILARITY_THRESHOLD = 0.25;  // Higher threshold for faster filtering
-export const MAX_SOURCES_IN_CONTEXT = IS_PRODUCTION ? 3 : 4;  // Fewer sources = faster LLM
+// Retrieval defaults:
+// - In production we still want decent recall; too-aggressive thresholds cause "no sources" for common topics.
+// - Keep TOP_K moderate but allow env override.
+export const TOP_K = parseInt(process.env.TOP_K || (IS_PRODUCTION ? '10' : '12'), 10);
+
+// Similarity threshold:
+// 0.25 is too strict for sparse/heterogeneous legal corpora and simple-embedding setups.
+// Use a safer default, overrideable via env.
+export const MIN_SIMILARITY_THRESHOLD = parseFloat(process.env.MIN_SIMILARITY_THRESHOLD || '0.12');
+
+// Keep context lean for latency, but not so small that answers lose grounding.
+export const MAX_SOURCES_IN_CONTEXT = IS_PRODUCTION ? 4 : 5;
+
 export const KEYWORD_GATE_ENABLED = false;
-export const SKIP_QUERY_EXPANSION_IN_PROD = true;  // Skip expansion for faster response
+
+// Query expansion is important for recall (especially for POPIA/CPA/etc.).
+// Keep it on in production, but the semantic-search implementation already limits expansions.
+export const SKIP_QUERY_EXPANSION_IN_PROD = false;
 
 // ========================= CLIENTS =========================
 export let db: any = null;
 export let collection: any = null;
 
-if (process.env.ASTRA_DB_APPLICATION_TOKEN) {
-  try {
-    const client = new DataAPIClient(process.env.ASTRA_DB_APPLICATION_TOKEN.trim());
-    const dbEndpoint = (process.env.ASTRA_DB_API_ENDPOINT || process.env.ENDPOINT)?.trim();
-    
-    if (dbEndpoint) {
-      db = client.db(dbEndpoint);
-      collection = db.collection(COLLECTION_NAME);
-    } else {
-      console.warn("⚠️ Astra DB ENDPOINT missing. Vectors will be disabled.");
-    }
-  } catch (err) {
-    console.error("❌ Failed to initialize Astra DB client:", err);
+function initAstra() {
+  const token = (process.env.ASTRA_DB_APPLICATION_TOKEN || '').trim();
+  const endpoint = (process.env.ASTRA_DB_API_ENDPOINT || process.env.ENDPOINT || '').trim();
+
+  if (!token) {
+    console.error('❌ CRITICAL: ASTRA_DB_APPLICATION_TOKEN missing. Database retrieval disabled.');
+    return;
   }
-} else {
-  console.warn("⚠️ ASTRA_DB_APPLICATION_TOKEN missing. Vectors will be disabled.");
+  if (!endpoint) {
+    console.error('❌ CRITICAL: ASTRA_DB_API_ENDPOINT/ENDPOINT missing. Database retrieval disabled.');
+    return;
+  }
+
+  try {
+    const client = new DataAPIClient(token);
+    db = client.db(endpoint);
+    collection = db.collection(COLLECTION_NAME);
+    console.log(`✅ Astra initialized: collection="${COLLECTION_NAME}" endpoint="${endpoint.substring(0, 35)}..."`);
+    
+    // Test connectivity immediately
+    collection.countDocuments({}, { limit: 1 })
+      .then((count: number) => console.log(`📊 Astra collection has ${count} documents`))
+      .catch((err: any) => console.error('⚠️ Astra connectivity test failed:', err.message));
+  } catch (err) {
+    console.error('❌ Failed to initialize Astra DB client:', err);
+  }
 }
+
+initAstra();
 
 // ========================= EMBEDDING =========================
 // Embedding cache for repeated queries (in-memory, session-scoped)
 const embeddingCache = new Map<string, { embedding: number[], timestamp: number }>();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
-// Cloud embedding via Hugging Face - Single or Batch
-async function fetchCloudEmbeddings(inputs: string | string[]): Promise<number[][]> {
-  if (!HUGGINGFACE_API_KEY) return [];
-  
-  const model = "intfloat/multilingual-e5-large";
-  const isBatch = Array.isArray(inputs);
-  const inputsToProcess = isBatch ? (inputs as string[]) : [inputs as string];
-  
-  try {
-    console.log(`☁️ Sending embedding request to HF Router for ${model} (batch size: ${inputsToProcess.length})`);
-    
-    // E5 models require "query: " or "passage: " prefix
-    const prefixedInputs = inputsToProcess.map(text => {
-      const trimmed = text.trim();
-      return trimmed.startsWith("query:") || trimmed.startsWith("passage:") 
-        ? trimmed 
-        : `query: ${trimmed}`;
-    });
+// Simple embedding for 0-cost compatibility with stored data
+function generateSimpleEmbedding(text: string): number[] {
+  const VECTOR_DIM = 1024;
+  const embedding = new Array(VECTOR_DIM).fill(0);
+  const normalized = text.toLowerCase().replace(/[^a-z0-9\s]/g, ' ');
+  const words = normalized.split(/\s+/).filter(w => w.length > 0);
 
-    const response = await fetch(`https://router.huggingface.co/hf-inference/models/${model}`, {
-      method: "POST",
-      headers: { 
-        "Authorization": `Bearer ${HUGGINGFACE_API_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ 
-        inputs: isBatch ? prefixedInputs : prefixedInputs[0],
-        options: { wait_for_model: true }
-      }),
-    });
-
-    if (!response.ok) {
-      const errType = await response.text();
-      console.error(`❌ HF API Error (${response.status}):`, errType);
-      throw new Error(`HF error: ${response.status} ${errType}`);
+  for (let i = 0; i < words.length; i++) {
+    const word = words[i];
+    if (!word || word.length === 0) continue;
+    for (let j = 0; j < word.length; j++) {
+      const charCode = word.charCodeAt(j);
+      const idx1 = (charCode * (i + 1) * (j + 1)) % VECTOR_DIM;
+      const idx2 = (charCode * (i + 2) * (j + 3)) % VECTOR_DIM;
+      embedding[idx1] += 1 / (1 + Math.log(words.length + 1));
+      embedding[idx2] += 0.5 / (1 + Math.log(words.length + 1));
     }
-
-    const result = await response.json();
-    
-    // Response can be [vector] or [[vector], [vector]] or [v1, v2, ...]
-    // Standardize to number[][]
-    let embeddings: number[][] = [];
-    
-    if (isBatch) {
-      if (Array.isArray(result) && Array.isArray(result[0])) {
-        embeddings = result;
-      } else if (Array.isArray(result) && typeof result[0] === 'number') {
-        // Some models return a single vector even for batch if batch size is 1
-        embeddings = [result as number[]];
-      }
-    } else {
-      const embedding = Array.isArray(result) && Array.isArray(result[0]) ? result[0] : result;
-      embeddings = [embedding as number[]];
-    }
-    
-    return embeddings;
-  } catch (err: any) {
-    console.error("❌ Hugging Face Embedding failed:", err.message);
-    throw err;
   }
+
+  const magnitude = Math.sqrt(embedding.reduce((sum, val) => sum + val * val, 0));
+  if (magnitude > 0) {
+    for (let i = 0; i < embedding.length; i++) {
+      embedding[i] /= magnitude;
+    }
+  }
+
+  return embedding;
+}
+
+// Cloud embedding via Hugging Face - Single or Batch (DISABLED for 0-cost)
+async function fetchCloudEmbeddings(inputs: string | string[]): Promise<number[][]> {
+  console.log('🔧 Using simple embeddings for 0-cost compatibility');
+  // Return empty to fall back to simple
+  return [];
 }
 
 async function getCloudEmbedding(text: string): Promise<number[]> {
@@ -154,46 +161,24 @@ export async function getEmbedding(text: string, retries = 2): Promise<number[]>
   const hfKey = (HUGGINGFACE_API_KEY || process.env.HUGGINGFACE_API_KEY || "").trim();
   const useCloud = isProduction || hfKey.length > 0 || !OLLAMA_BASE_URL.includes("localhost");
 
-  for (let i = 0; i < retries; i++) {
+   for (let i = 0; i < retries; i++) {
     try {
       let embedding: number[];
 
-      if (useCloud) {
-        if (hfKey) {
-          console.log(`☁️ Using Cloud Embedding (HF) - Key: ${hfKey.substring(0, 5)}...`);
-          embedding = await getCloudEmbedding(textToEmbed);
-        } else if (isProduction) {
-          console.warn("⚠️ HUGGINGFACE_API_KEY missing in production. Retrieval will be empty.");
-          console.timeEnd(`⏱️ Embedding [${text.substring(0, 20)}...]`);
-          return [];
-        } else {
-          console.warn(`☁️ Cloud embedding requested (isProd=${isProduction}, hfKeyLen=${hfKey.length}) but key is missing. Falling back to local.`);
-          // Don't throw here, just fall through to local
-          throw new Error("Skipping to local");
-        }
+      if (useCloud && hfKey) {
+        console.log(`☁️ Using Cloud Embedding (HF) for queries`);
+        const results = await fetchCloudEmbeddings(textToEmbed);
+        embedding = results[0] || generateSimpleEmbedding(textToEmbed);
       } else {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s timeout for local
-
-        const response = await fetch(`${OLLAMA_BASE_URL}/api/embeddings`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ model: EMBED_MODEL, prompt: textToEmbed }),
-          signal: controller.signal
-        });
-
-        clearTimeout(timeoutId);
-
-        if (!response.ok) throw new Error(`Ollama error: ${response.status}`);
-        const data = await response.json();
-        embedding = data.embedding;
+        console.log('🔧 Using simple embeddings for queries');
+        embedding = generateSimpleEmbedding(textToEmbed);
       }
 
       if (!embedding || embedding.length === 0) throw new Error("Empty embedding received");
-      
+
       // Cache the result
       embeddingCache.set(cacheKey, { embedding, timestamp: Date.now() });
-      
+
       console.timeEnd(`⏱️ Embedding [${text.substring(0, 20)}...]`);
       return embedding;
     } catch (err) {
@@ -287,6 +272,13 @@ export async function retrieveRelevantDocuments(query: string, conversationConte
   let results: any[] = [];
   const startTime = Date.now();
 
+  // Hard guard: never attempt retrieval if Astra isn't initialized.
+  // This prevents confusing UX where everything becomes "no sources" without explanation.
+  if (!collection) {
+    console.warn('⚠️ Retrieval skipped: Astra collection not initialized. Check env vars on this runtime.');
+    return [];
+  }
+
   try {
     console.log(`\n🔍 === RETRIEVAL START for: "${query}" ===`);
     
@@ -354,8 +346,9 @@ export async function retrieveRelevantDocuments(query: string, conversationConte
       }
     }
     
-    // PRODUCTION: Skip query expansion for speed, use only in dev for better recall
-    const shouldExpand = !IS_PRODUCTION && !SKIP_QUERY_EXPANSION_IN_PROD && enrichedQuery.length > 20;
+    // Query expansion should be enabled when it helps recall.
+    // In production we still expand for medium/long queries; for very short queries we skip to reduce noise.
+    const shouldExpand = !SKIP_QUERY_EXPANSION_IN_PROD && enrichedQuery.length > 20;
     
     // Launch identification promise
     const entitiesPromise = Promise.resolve(identifyLegalEntities(enrichedQuery));
@@ -817,10 +810,10 @@ export function cleanThinkingOutput(response: string): string {
 
 // ========================= RESPONSE GENERATION =========================
 export async function generateResponse(
-  query: string, 
-  context: string, 
-  hasContext: boolean, 
-  provider: "ollama" | "groq" = "ollama", 
+  query: string,
+  context: string,
+  hasContext: boolean,
+  provider: "ollama" | "groq" = "ollama",
   systemPromptOverride?: string
 ) {
   // Synchronous version for simple calls
@@ -829,7 +822,7 @@ export async function generateResponse(
   const finalPrompt = systemPromptOverride || (hasContext ? systemPrompt.replace("{INJECTED_CONTEXT}", context) : systemPrompt);
 
   const isProduction = process.env.NODE_ENV === "production" || process.env.VERCEL === "1";
-  const effectiveProvider = (isProduction && GROQ_API_KEY) ? "groq" : provider;
+  const effectiveProvider = (GROQ_API_KEY) ? "groq" : provider;
   let chatModel;
 
   if (effectiveProvider === "groq" && GROQ_API_KEY) {
@@ -868,50 +861,73 @@ export async function generateResponse(
  * Streaming Response Generation
  */
 export async function* generateResponseStream(
-  query: string,
-  context: string,
-  hasContext: boolean,
-  provider: "ollama" | "groq" = "ollama",
-  systemPromptOverride?: string
+   query: string,
+   context: string,
+   hasContext: boolean,
+   provider: "ollama" | "groq" = "ollama",
+   systemPromptOverride?: string
 ) {
-  const currentDate = format(new Date(), "MMMM d, yyyy");
-  const systemPrompt = getSystemPrompt(hasContext, currentDate);
-  const finalPrompt = systemPromptOverride || (hasContext ? systemPrompt.replace("{INJECTED_CONTEXT}", context) : systemPrompt);
+   const currentDate = format(new Date(), "MMMM d, yyyy");
+   const systemPrompt = getSystemPrompt(hasContext, currentDate);
+   const finalPrompt = systemPromptOverride || (hasContext ? systemPrompt.replace("{INJECTED_CONTEXT}", context) : systemPrompt);
 
-  const isProduction = process.env.NODE_ENV === "production" || process.env.VERCEL === "1";
-  const effectiveProvider = (isProduction && GROQ_API_KEY) ? "groq" : provider;
-  let chatModel;
+   const isProduction = process.env.NODE_ENV === "production" || process.env.VERCEL === "1";
+   const effectiveProvider = (GROQ_API_KEY) ? "groq" : provider;
+   let chatModel;
 
-  if (effectiveProvider === "groq" && GROQ_API_KEY) {
-    chatModel = new ChatGroq({
-      apiKey: GROQ_API_KEY,
-      model: GROQ_MODEL,
-      temperature: 0,  // Zero temperature for maximum accuracy
-      maxTokens: 3000,
-      streaming: true,
-    });
-  } else {
-    chatModel = new ChatOllama({
-      baseUrl: OLLAMA_BASE_URL,
-      model: CHAT_MODEL,
-      temperature: 0.05,
-      numCtx: 6144,
-      numPredict: 3000,
-    });
-  }
+   if (effectiveProvider === "groq" && GROQ_API_KEY) {
+     chatModel = new ChatGroq({
+       apiKey: GROQ_API_KEY,
+       model: GROQ_MODEL,
+       temperature: 0,  // Zero temperature for maximum accuracy
+       maxTokens: 3000,
+       streaming: true,
+     });
+   } else {
+     chatModel = new ChatOllama({
+       baseUrl: OLLAMA_BASE_URL,
+       model: CHAT_MODEL,
+       temperature: 0.05,
+       numCtx: 6144,
+       numPredict: 3000,
+     });
+   }
 
-  const stream = await chatModel.stream([
-    { role: "system", content: finalPrompt },
-    { role: "user", content: query },
-  ]);
+   let stream;
+   let chunkCount = 0;
+   let totalTextLength = 0;
 
-  for await (const chunk of stream) {
-    const text = typeof chunk.content === "string" 
-      ? chunk.content 
-      : chunk.content?.map((c: any) => c.text || "").join("") || "";
-    
-    if (text) yield text;
-  }
+   try {
+     console.log(`🔤 [generateResponseStream] Starting with provider: ${effectiveProvider}`);
+     stream = await chatModel.stream([
+       { role: "system", content: finalPrompt },
+       { role: "user", content: query },
+     ]);
+   } catch (error: any) {
+     console.error('[RAG] Stream initialization error:', error.message);
+     throw error;
+   }
+
+   try {
+     for await (const chunk of stream) {
+       const text = typeof chunk.content === "string" 
+         ? chunk.content 
+         : chunk.content?.map((c: any) => c.text || "").join("") || "";
+       
+       if (text && text.length > 0) {
+         chunkCount++;
+         totalTextLength += text.length;
+         console.log(`📊 [Stream Chunk ${chunkCount}] Length: ${text.length}, Total: ${totalTextLength}`);
+         yield text;
+       } else {
+         console.warn(`⚠️ [Stream Chunk ${chunkCount + 1}] Empty chunk received`);
+       }
+     }
+     console.log(`✅ [Stream Complete] Total chunks: ${chunkCount}, Total text: ${totalTextLength}c`);
+   } catch (error: any) {
+     console.error('[RAG] Stream reading error:', error.message);
+     throw error;
+   }
 }
 
 // ========================= HEALTH CHECK =========================

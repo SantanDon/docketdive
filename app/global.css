@@ -148,6 +148,25 @@
   }
 }
 
+/* ============================================
+   LAYOUT STABILITY - PREVENT JANK
+   ============================================ */
+html {
+  /* Reserve space for scrollbar to prevent layout shift */
+  scrollbar-gutter: stable;
+}
+
+/* Stabilize message container during streaming */
+.message-container {
+  contain: layout;
+  will-change: contents;
+}
+
+/* Stabilize message list */
+.message-list {
+  contain: layout style;
+}
+
 @layer utilities {
   /* Glass Morphism - Simplified */
   .glass {
@@ -341,6 +360,217 @@
 
   .chat-prose a:hover {
     color: hsl(var(--primary) / 0.8);
+  }
+
+  /* ============================================
+     FORMATTED RESPONSE - Professional Styling
+     ============================================ */
+  .formatted-response {
+    color: hsl(var(--foreground));
+  }
+
+  /* Headings with proper hierarchy */
+  .formatted-response h1 {
+    font-size: 1.875rem;
+    font-weight: 700;
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid hsl(var(--primary) / 0.2);
+    letter-spacing: -0.025em;
+  }
+
+  .formatted-response h1:first-child {
+    margin-top: 0;
+  }
+
+  .formatted-response h2 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-top: 1.75rem;
+    margin-bottom: 0.75rem;
+    color: hsl(var(--primary));
+  }
+
+  .formatted-response h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-top: 1.5rem;
+    margin-bottom: 0.5rem;
+    color: hsl(var(--foreground));
+  }
+
+  .formatted-response h4,
+  .formatted-response h5,
+  .formatted-response h6 {
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin-top: 1.25rem;
+    margin-bottom: 0.5rem;
+  }
+
+  /* Paragraphs with better spacing */
+  .formatted-response p {
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+    line-height: 1.75;
+    color: hsl(var(--foreground) / 0.95);
+    font-size: 0.95rem;
+    letter-spacing: 0.3px;
+  }
+
+  .formatted-response p:first-child {
+    margin-top: 0;
+  }
+
+  /* Lists with proper styling */
+  .formatted-response ul,
+  .formatted-response ol {
+    margin-top: 1.25rem;
+    margin-bottom: 1.25rem;
+    padding-left: 1.75rem;
+  }
+
+  .formatted-response li {
+    margin-top: 0.625rem;
+    margin-bottom: 0.625rem;
+    line-height: 1.75;
+    color: hsl(var(--foreground) / 0.9);
+  }
+
+  .formatted-response li > p {
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .formatted-response ul > li::marker {
+    color: hsl(var(--primary));
+    font-weight: 600;
+  }
+
+  .formatted-response ol > li::marker {
+    color: hsl(var(--primary));
+    font-weight: 600;
+  }
+
+  /* Blockquotes with visual emphasis */
+  .formatted-response blockquote {
+    border-left: 4px solid hsl(var(--primary) / 0.5);
+    background-color: hsl(var(--primary) / 0.05);
+    dark: background-color hsl(var(--primary) / 0.1);
+    padding: 1rem 1.25rem;
+    margin-top: 1.5rem;
+    margin-bottom: 1.5rem;
+    border-radius: 0.5rem;
+    font-style: italic;
+    color: hsl(var(--foreground) / 0.85);
+  }
+
+  /* Code blocks - Professional styling */
+  .formatted-response code {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  }
+
+  /* Inline code */
+  .formatted-response code:not(pre code) {
+    background-color: hsl(var(--muted));
+    color: hsl(var(--primary));
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.85em;
+    font-weight: 500;
+    border: 1px solid hsl(var(--border));
+  }
+
+  .dark .formatted-response code:not(pre code) {
+    background-color: hsl(var(--muted) / 0.5);
+  }
+
+  /* Code blocks */
+  .formatted-response pre {
+    background-color: hsl(var(--muted));
+    border: 1px solid hsl(var(--border));
+    border-radius: 0.5rem;
+    padding: 1.25rem;
+    margin-top: 1.5rem;
+    margin-bottom: 1.5rem;
+    overflow-x: auto;
+    font-size: 0.875rem;
+    line-height: 1.5;
+  }
+
+  .formatted-response pre code {
+    background-color: transparent;
+    padding: 0;
+    border: none;
+    color: hsl(var(--foreground));
+    font-size: inherit;
+  }
+
+  /* Links */
+  .formatted-response a {
+    color: hsl(var(--primary));
+    text-decoration: underline;
+    text-underline-offset: 4px;
+    font-weight: 500;
+    transition: color 0.2s ease;
+  }
+
+  .formatted-response a:hover {
+    color: hsl(var(--primary) / 0.8);
+    text-decoration: underline;
+  }
+
+  /* Tables */
+  .formatted-response table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1.5rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid hsl(var(--border));
+    border-radius: 0.5rem;
+    overflow: hidden;
+  }
+
+  .formatted-response thead {
+    background-color: hsl(var(--primary) / 0.1);
+    font-weight: 600;
+  }
+
+  .formatted-response th {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    border: 1px solid hsl(var(--border));
+    color: hsl(var(--foreground));
+  }
+
+  .formatted-response td {
+    padding: 0.75rem 1rem;
+    border: 1px solid hsl(var(--border));
+    color: hsl(var(--foreground) / 0.9);
+  }
+
+  .formatted-response tr:hover {
+    background-color: hsl(var(--primary) / 0.05);
+  }
+
+  /* Horizontal rules */
+  .formatted-response hr {
+    border: none;
+    border-top: 2px solid hsl(var(--primary) / 0.2);
+    margin-top: 2rem;
+    margin-bottom: 2rem;
+  }
+
+  /* Strong text */
+  .formatted-response strong {
+    font-weight: 700;
+    color: hsl(var(--foreground));
+  }
+
+  /* Emphasis */
+  .formatted-response em {
+    font-style: italic;
   }
 }
 

@@ -9,6 +9,7 @@ import type {
   ContractAnalysis, 
   AnalysisPerspective
 } from "@/types/legal-tools";
+import { withErrorHandling } from "../utils/route-handler";
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY?.trim();
 const OLLAMA_BASE_URL = (process.env.OLLAMA_BASE_URL || "http://localhost:11434").trim();
@@ -175,66 +176,59 @@ function parseAnalysisResponse(response: string, perspective: AnalysisPerspectiv
   }
 }
 
-export async function POST(request: Request) {
+const contractAnalysisPostHandler = async (request: Request) => {
   const start = Date.now();
   
-  try {
-    const body: ContractAnalysisRequest = await request.json();
-    const { content, perspective, contractType } = body;
+  const body: ContractAnalysisRequest = await request.json();
+  const { content, perspective, contractType } = body;
 
-    if (!content || typeof content !== 'string' || content.trim().length === 0) {
-      return Response.json({ error: 'Contract content is required' }, { status: 400 });
-    }
-
-    if (!perspective || !['party_a', 'party_b', 'neutral'].includes(perspective)) {
-      return Response.json({ error: 'Valid perspective is required (party_a, party_b, or neutral)' }, { status: 400 });
-    }
-
-    // Truncate very long contracts to avoid token limits - reduced for speed
-    const maxLength = 12000;
-    const truncatedContent = content.length > maxLength 
-      ? content.substring(0, maxLength) + '\n\n[Contract truncated for analysis...]'
-      : content;
-
-    const systemPrompt = getAnalysisPrompt(perspective);
-    const userPrompt = contractType 
-      ? `Analyze this ${contractType}:\n\n${truncatedContent}`
-      : `Analyze this contract:\n\n${truncatedContent}`;
-
-    // Use cached chat model
-    const chatModel = getChatModel();
-
-    const response = await Promise.race([
-      chatModel.invoke([
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ]),
-      new Promise((_, reject) => setTimeout(() => reject(new Error("Analysis timeout")), 60000)) // Reduced timeout
-    ]) as any;
-
-    const rawResponse = typeof response.content === "string"
-      ? response.content
-      : response.content?.map((c: any) => c.text || "").join("");
-
-    const analysis = parseAnalysisResponse(rawResponse, perspective);
-    const processingTime = Date.now() - start;
-
-    return Response.json({
-      analysis,
-      processingTime,
-      generatedAt: new Date().toISOString()
-    });
-
-  } catch (error: any) {
-    console.error('Contract analysis error:', error);
-    return Response.json(
-      { error: error.message || 'Analysis failed' },
-      { status: 500 }
-    );
+  if (!content || typeof content !== 'string' || content.trim().length === 0) {
+    return Response.json({ error: 'Contract content is required' }, { status: 400 });
   }
-}
 
-export async function GET() {
+  if (!perspective || !['party_a', 'party_b', 'neutral'].includes(perspective)) {
+    return Response.json({ error: 'Valid perspective is required (party_a, party_b, or neutral)' }, { status: 400 });
+  }
+
+  // Truncate very long contracts to avoid token limits - reduced for speed
+  const maxLength = 12000;
+  const truncatedContent = content.length > maxLength 
+    ? content.substring(0, maxLength) + '\n\n[Contract truncated for analysis...]'
+    : content;
+
+  const systemPrompt = getAnalysisPrompt(perspective);
+  const userPrompt = contractType 
+    ? `Analyze this ${contractType}:\n\n${truncatedContent}`
+    : `Analyze this contract:\n\n${truncatedContent}`;
+
+  // Use cached chat model
+  const chatModel = getChatModel();
+
+  const response = await Promise.race([
+    chatModel.invoke([
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userPrompt },
+    ]),
+    new Promise((_, reject) => setTimeout(() => reject(new Error("Analysis timeout")), 60000)) // Reduced timeout
+  ]) as any;
+
+  const rawResponse = typeof response.content === "string"
+    ? response.content
+    : response.content?.map((c: any) => c.text || "").join("");
+
+  const analysis = parseAnalysisResponse(rawResponse, perspective);
+  const processingTime = Date.now() - start;
+
+  return Response.json({
+    analysis,
+    processingTime,
+    generatedAt: new Date().toISOString()
+  });
+};
+
+export const POST = withErrorHandling(contractAnalysisPostHandler);
+
+const contractAnalysisGetHandler = async (request: Request) => {
   return Response.json({
     service: 'Contract Analysis API',
     perspectives: ['party_a', 'party_b', 'neutral'],
@@ -248,4 +242,6 @@ export async function GET() {
       }
     }
   });
-}
+};
+
+export const GET = withErrorHandling(contractAnalysisGetHandler);

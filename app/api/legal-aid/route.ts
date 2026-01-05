@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import { withErrorHandling } from '../utils/route-handler';
 
 // ============================================
 // Types
@@ -96,92 +97,86 @@ Remember: The person reading this may be stressed, scared, or unfamiliar with th
 // GET /api/legal-aid - Get resources
 // ============================================
 
-export async function GET(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const type = searchParams.get('type');
-    const province = searchParams.get('province');
+const legalAidGetHandler = async (request: Request) => {
+  const { searchParams } = new URL(request.url);
+  const type = searchParams.get('type');
+  const province = searchParams.get('province');
 
-    const resources = loadResources();
+  const resources = loadResources();
 
-    // Get offices by province
-    if (type === 'offices' || province) {
-      const offices = resources.legalAidOffices?.provinces || [];
-      
-      if (province) {
-        const filtered = offices.filter((o: LegalAidOffice) => 
-          o.province.toLowerCase().includes(province.toLowerCase())
-        );
-        return NextResponse.json({
-          offices: filtered,
-          mainContact: {
-            tollFree: resources.legalAidSA?.tollFree,
-            website: resources.legalAidSA?.website,
-          },
-        });
-      }
-      
+  // Get offices by province
+  if (type === 'offices' || province) {
+    const offices = resources.legalAidOffices?.provinces || [];
+    
+    if (province) {
+      const filtered = offices.filter((o: LegalAidOffice) => 
+        o.province.toLowerCase().includes(province.toLowerCase())
+      );
       return NextResponse.json({
-        offices,
+        offices: filtered,
         mainContact: {
           tollFree: resources.legalAidSA?.tollFree,
           website: resources.legalAidSA?.website,
         },
       });
     }
-
-    // Get eligibility criteria
-    if (type === 'eligibility') {
-      return NextResponse.json({
-        eligibility: resources.legalAidSA?.eligibility,
-        howToApply: resources.legalAidSA?.howToApply,
-        servicesProvided: resources.legalAidSA?.servicesProvided,
-      });
-    }
-
-    // Get NGO resources
-    if (type === 'ngo') {
-      return NextResponse.json({
-        ngoServices: resources.otherResources?.ngoLegalServices,
-        lawClinics: resources.otherResources?.lawClinics,
-      });
-    }
-
-    // Get emergency contacts
-    if (type === 'emergency') {
-      return NextResponse.json({
-        emergencyContacts: resources.emergencyContacts,
-      });
-    }
-
-    // Get plain language guidance
-    if (type === 'plain-language') {
-      return NextResponse.json({
-        guidance: resources.plainLanguageGuidance,
-      });
-    }
-
-    // Get system prompt for Legal Aid Mode
-    if (type === 'system-prompt') {
-      return NextResponse.json({
-        systemPrompt: getLegalAidSystemPrompt(),
-      });
-    }
-
-    // Return all resources
+    
     return NextResponse.json({
-      legalAidSA: resources.legalAidSA,
-      offices: resources.legalAidOffices,
-      otherResources: resources.otherResources,
-      feeWaivers: resources.feeWaivers,
-      selfHelpResources: resources.selfHelpResources,
+      offices,
+      mainContact: {
+        tollFree: resources.legalAidSA?.tollFree,
+        website: resources.legalAidSA?.website,
+      },
+    });
+  }
+
+  // Get eligibility criteria
+  if (type === 'eligibility') {
+    return NextResponse.json({
+      eligibility: resources.legalAidSA?.eligibility,
+      howToApply: resources.legalAidSA?.howToApply,
+      servicesProvided: resources.legalAidSA?.servicesProvided,
+    });
+  }
+
+  // Get NGO resources
+  if (type === 'ngo') {
+    return NextResponse.json({
+      ngoServices: resources.otherResources?.ngoLegalServices,
+      lawClinics: resources.otherResources?.lawClinics,
+    });
+  }
+
+  // Get emergency contacts
+  if (type === 'emergency') {
+    return NextResponse.json({
       emergencyContacts: resources.emergencyContacts,
     });
-
-  } catch (error: any) {
-    return NextResponse.json(
-      { error: error.message || 'Failed to load resources' },
-      { status: 500 }
-    );
   }
-}
+
+  // Get plain language guidance
+  if (type === 'plain-language') {
+    return NextResponse.json({
+      guidance: resources.plainLanguageGuidance,
+    });
+  }
+
+  // Get system prompt for Legal Aid Mode
+  if (type === 'system-prompt') {
+    return NextResponse.json({
+      systemPrompt: getLegalAidSystemPrompt(),
+    });
+  }
+
+  // Return all resources
+  return NextResponse.json({
+    legalAidSA: resources.legalAidSA,
+    offices: resources.legalAidOffices,
+    otherResources: resources.otherResources,
+    feeWaivers: resources.feeWaivers,
+    selfHelpResources: resources.selfHelpResources,
+    emergencyContacts: resources.emergencyContacts,
+  });
+};
+
+export const GET = withErrorHandling(legalAidGetHandler);

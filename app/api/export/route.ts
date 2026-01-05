@@ -5,6 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { withErrorHandling } from '../utils/route-handler';
 import {
   Document,
   Packer,
@@ -260,64 +261,57 @@ async function generateDocx(
 // POST /api/export
 // ============================================
 
-export async function POST(request: NextRequest) {
-  try {
-    const body: ExportRequest = await request.json();
-    const { content, format, title = 'Legal Document', author = 'DocketDive' } = body;
+const exportPostHandler = async (request: Request) => {
+  const body: ExportRequest = await request.json();
+  const { content, format, title = 'Legal Document', author = 'DocketDive' } = body;
 
-    if (!content) {
-      return NextResponse.json(
-        { error: 'Content is required' },
-        { status: 400 }
-      );
-    }
-
-    if (format === 'docx') {
-      const buffer = await generateDocx(content, title, author);
-      
-      return new NextResponse(new Uint8Array(buffer), {
-        headers: {
-          'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-          'Content-Disposition': `attachment; filename="${title.replace(/[^a-z0-9]/gi, '_')}.docx"`,
-        },
-      });
-    }
-
-    if (format === 'txt') {
-      // Strip markdown formatting for plain text
-      const plainText = content
-        .replace(/\*\*(.+?)\*\*/g, '$1')
-        .replace(/\*(.+?)\*/g, '$1')
-        .replace(/^#+\s/gm, '')
-        .replace(/^[-*]\s/gm, '• ');
-
-      return new NextResponse(plainText, {
-        headers: {
-          'Content-Type': 'text/plain',
-          'Content-Disposition': `attachment; filename="${title.replace(/[^a-z0-9]/gi, '_')}.txt"`,
-        },
-      });
-    }
-
-    if (format === 'pdf') {
-      // PDF generation would require additional library like pdfkit
-      // For now, return an error suggesting docx
-      return NextResponse.json(
-        { error: 'PDF export coming soon. Please use DOCX format.' },
-        { status: 501 }
-      );
-    }
-
+  if (!content) {
     return NextResponse.json(
-      { error: `Unsupported format: ${format}` },
+      { error: 'Content is required' },
       { status: 400 }
     );
+  }
 
-  } catch (error: any) {
-    console.error('Export error:', error);
+  if (format === 'docx') {
+    const buffer = await generateDocx(content, title, author);
+    
+    return new NextResponse(new Uint8Array(buffer), {
+      headers: {
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'Content-Disposition': `attachment; filename="${title.replace(/[^a-z0-9]/gi, '_')}.docx"`,
+      },
+    });
+  }
+
+  if (format === 'txt') {
+    // Strip markdown formatting for plain text
+    const plainText = content
+      .replace(/\*\*(.+?)\*\*/g, '$1')
+      .replace(/\*(.+?)\*/g, '$1')
+      .replace(/^#+\s/gm, '')
+      .replace(/^[-*]\s/gm, '• ');
+
+    return new NextResponse(plainText, {
+      headers: {
+        'Content-Type': 'text/plain',
+        'Content-Disposition': `attachment; filename="${title.replace(/[^a-z0-9]/gi, '_')}.txt"`,
+      },
+    });
+  }
+
+  if (format === 'pdf') {
+    // PDF generation would require additional library like pdfkit
+    // For now, return an error suggesting docx
     return NextResponse.json(
-      { error: error.message || 'Export failed' },
-      { status: 500 }
+      { error: 'PDF export coming soon. Please use DOCX format.' },
+      { status: 501 }
     );
   }
-}
+
+  return NextResponse.json(
+    { error: `Unsupported format: ${format}` },
+    { status: 400 }
+  );
+};
+
+export const POST = withErrorHandling(exportPostHandler);

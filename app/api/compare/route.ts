@@ -5,6 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { withErrorHandling } from '../utils/route-handler';
 
 // ============================================
 // Types
@@ -336,65 +337,58 @@ function extractKeyDifferences(lineDiffs: DiffSegment[], clauseDiffs?: ClauseDif
 // POST /api/compare - Compare documents
 // ============================================
 
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json();
-    const { document1, document2, includeClauseAnalysis = true } = body;
+const comparePostHandler = async (request: Request) => {
+  const body = await request.json();
+  const { document1, document2, includeClauseAnalysis = true } = body;
 
-    if (!document1 || !document2) {
-      return NextResponse.json(
-        { error: 'Both document1 and document2 are required' },
-        { status: 400 }
-      );
-    }
-
-    // Split into lines
-    const doc1Lines = document1.split('\n');
-    const doc2Lines = document2.split('\n');
-
-    // Compute line-by-line diff
-    const lineDiffs = computeLineDiff(doc1Lines, doc2Lines);
-
-    // Compute clause-level diff if requested
-    let clauseDiffs: ClauseDiff[] | undefined;
-    if (includeClauseAnalysis) {
-      const clauses1 = parseClause(doc1Lines);
-      const clauses2 = parseClause(doc2Lines);
-      if (clauses1.length > 0 || clauses2.length > 0) {
-        clauseDiffs = compareClause(clauses1, clauses2);
-      }
-    }
-
-    // Calculate summary
-    const additions = lineDiffs.filter(d => d.type === 'added').length;
-    const deletions = lineDiffs.filter(d => d.type === 'removed').length;
-    const modifications = lineDiffs.filter(d => d.type === 'modified').length;
-    const similarityScore = Math.round(calculateSimilarity(document1, document2));
-
-    // Extract key differences
-    const keyDifferences = extractKeyDifferences(lineDiffs, clauseDiffs);
-
-    const report: ComparisonReport = {
-      summary: {
-        totalChanges: additions + deletions + modifications,
-        additions,
-        deletions,
-        modifications,
-        similarityScore,
-      },
-      lineDiffs,
-      clauseDiffs,
-      keyDifferences,
-      generatedAt: new Date().toISOString(),
-    };
-
-    return NextResponse.json(report);
-
-  } catch (error: any) {
-    console.error('Comparison error:', error);
+  if (!document1 || !document2) {
     return NextResponse.json(
-      { error: error.message || 'Comparison failed' },
-      { status: 500 }
+      { error: 'Both document1 and document2 are required' },
+      { status: 400 }
     );
   }
-}
+
+  // Split into lines
+  const doc1Lines = document1.split('\n');
+  const doc2Lines = document2.split('\n');
+
+  // Compute line-by-line diff
+  const lineDiffs = computeLineDiff(doc1Lines, doc2Lines);
+
+  // Compute clause-level diff if requested
+  let clauseDiffs: ClauseDiff[] | undefined;
+  if (includeClauseAnalysis) {
+    const clauses1 = parseClause(doc1Lines);
+    const clauses2 = parseClause(doc2Lines);
+    if (clauses1.length > 0 || clauses2.length > 0) {
+      clauseDiffs = compareClause(clauses1, clauses2);
+    }
+  }
+
+  // Calculate summary
+  const additions = lineDiffs.filter(d => d.type === 'added').length;
+  const deletions = lineDiffs.filter(d => d.type === 'removed').length;
+  const modifications = lineDiffs.filter(d => d.type === 'modified').length;
+  const similarityScore = Math.round(calculateSimilarity(document1, document2));
+
+  // Extract key differences
+  const keyDifferences = extractKeyDifferences(lineDiffs, clauseDiffs);
+
+  const report: ComparisonReport = {
+    summary: {
+      totalChanges: additions + deletions + modifications,
+      additions,
+      deletions,
+      modifications,
+      similarityScore,
+    },
+    lineDiffs,
+    clauseDiffs,
+    keyDifferences,
+    generatedAt: new Date().toISOString(),
+  };
+
+  return NextResponse.json(report);
+};
+
+export const POST = withErrorHandling(comparePostHandler);

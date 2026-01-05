@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import { withErrorHandling } from '../utils/route-handler';
 
 // ============================================
 // Types
@@ -189,7 +190,7 @@ function checkRequirement(content: string, requirement: POPIARequirement): Requi
 // POST /api/popia - Check POPIA compliance
 // ============================================
 
-export async function POST(request: NextRequest) {
+const popiaPostHandler = async (request: Request) => {
   try {
     const body = await request.json();
     const { content, documentId = `doc_${Date.now()}`, documentType: specifiedType } = body;
@@ -306,13 +307,15 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+};
+
+export const POST = withErrorHandling(popiaPostHandler);
 
 // ============================================
 // GET /api/popia/requirements - Get requirements
 // ============================================
 
-export async function GET(request: NextRequest) {
+const popiaGetHandler = async (request: Request) => {
   try {
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type') as DocumentType | null;
@@ -353,4 +356,6 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+};
+
+export const GET = withErrorHandling(popiaGetHandler);

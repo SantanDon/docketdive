@@ -216,27 +216,43 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
     }
 
     try {
-      // Get or create conversation ID
-      const conversationId = localStorage.getItem("current_conversation_id") || `conv_${Date.now()}`;
-      localStorage.setItem("current_conversation_id", conversationId);
+       // Get or create conversation ID
+       const conversationId = localStorage.getItem("current_conversation_id") || `conv_${Date.now()}`;
+       localStorage.setItem("current_conversation_id", conversationId);
 
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          message: enhancedMessage, 
-          provider,
-          conversationHistory: messages,
-          conversationId,
-          userId: anonymousUserId || getOrCreateAnonymousUserId(),
-          language,
-          legalAidMode
-        }),
-        signal: abortControllerRef.current.signal,
-      });
+       const controller = abortControllerRef.current!;
+       
+       // Add request timeout (3 minutes for initial connection)
+       const timeoutId = setTimeout(() => {
+         controller.abort();
+       }, 180000);
 
-      if (!res.ok) throw new Error(`Server error: ${res.status}`);
-      if (!res.body) throw new Error("No response body");
+       let res: Response;
+       try {
+         res = await fetch("/api/chat", {
+           method: "POST",
+           headers: { "Content-Type": "application/json" },
+           body: JSON.stringify({ 
+             message: enhancedMessage, 
+             provider,
+             // Use the optimistic-updated messages so the API sees the latest user prompt.
+             conversationHistory: newMessages,
+             conversationId,
+             userId: anonymousUserId || getOrCreateAnonymousUserId(),
+             language,
+             legalAidMode
+           }),
+           signal: controller.signal,
+         });
+       } finally {
+         clearTimeout(timeoutId);
+       }
+
+       if (!res.ok) {
+         const errorText = await res.text();
+         throw new Error(`Server error ${res.status}: ${errorText || res.statusText}`);
+       }
+       if (!res.body) throw new Error("No response body from server");
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -259,39 +275,113 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
         }
       ]);
 
-      const buffer: string[] = [];
+      // Robust NDJSON parsing: JSON objects can be split across network chunks.
+      // We must buffer partial lines.
+      let pending = "";
+      let lastChunkTime = Date.now();
+      let hasReceivedContent = false;
+      
+      // Stream timeout: if no data for 60 seconds, abort
+      const streamTimeoutId = setInterval(() => {
+        const timeSinceLastChunk = Date.now() - lastChunkTime;
+        if (timeSinceLastChunk > 60000 && !done) {
+          console.error('[Chat] Stream timeout: no data for 60 seconds');
+          reader.cancel();
+          done = true;
+          clearInterval(streamTimeoutId);
+        }
+      }, 10000);
 
       while (!done) {
         const { value, done: doneReading } = await reader.read();
         done = doneReading;
-        if (done) break;
 
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split("\n").filter(l => l.trim());
+        const chunk = decoder.decode(value || new Uint8Array(), { stream: !done });
+        if (chunk.length > 0) {
+          lastChunkTime = Date.now();
+          hasReceivedContent = true;
+        }
+        pending += chunk;
 
-        for (const line of lines) {
+        // Process complete lines; keep the last partial line in `pending`.
+        const parts = pending.split("\n");
+        pending = parts.pop() ?? "";
+
+        for (const rawLine of parts) {
+          const line = rawLine.trim();
+          if (!line) continue;
+
+          let parsed: any;
           try {
-            const parsed = JSON.parse(line);
-            
-            if (parsed.type === "text_delta") {
-              setStreamingStatus(""); // Clear status once text starts
-              fullContent += parsed.content;
-              setMessages(prev => prev.map(m => 
-                m.id === assistantMessageId ? { ...m, content: fullContent } : m
-              ));
-            } else if (parsed.type === "sources") {
-              sources = parsed.content;
-              setMessages(prev => prev.map(m => 
-                m.id === assistantMessageId ? { ...m, sources } : m
-              ));
-            } else if (parsed.type === "status" && parsed.content) {
-              setStreamingStatus(parsed.content);
-            } else if (parsed.type === "error") {
-              throw new Error(parsed.content);
-            }
+            parsed = JSON.parse(line);
           } catch (e) {
-            console.error("Error parsing NDJSON line:", line, e);
+            // If we fail parsing a line, it might be because we split mid-JSON.
+            // Re-attach it to pending and wait for more data.
+            pending = line + "\n" + pending;
+            continue;
           }
+
+          if (parsed.type === "text_delta") {
+            setStreamingStatus(""); // Clear status once text starts
+            fullContent += parsed.content;
+            setMessages(prev => prev.map(m => 
+              m.id === assistantMessageId ? { ...m, content: fullContent } : m
+            ));
+          } else if (parsed.type === "sources") {
+            sources = parsed.content;
+            setMessages(prev => prev.map(m => 
+              m.id === assistantMessageId ? { ...m, sources } : m
+            ));
+          } else if (parsed.type === "status") {
+            // Allow empty status to clear UI.
+            setStreamingStatus(parsed.content || "");
+          } else if (parsed.type === "error") {
+            console.error("API Error:", parsed.content);
+            // Don't throw - just add to fullContent so user sees the error
+            fullContent += `\n\n❌ **Error**: ${parsed.content}`;
+            setMessages(prev => prev.map(m => 
+              m.id === assistantMessageId ? { ...m, content: fullContent } : m
+            ));
+          } else if (parsed.type === "metadata") {
+            console.log("Metadata:", parsed.content);
+          }
+        }
+      }
+      
+      clearInterval(streamTimeoutId);
+      
+      // Check if stream was empty
+      if (!hasReceivedContent) {
+        console.warn('[Chat] Stream completed but no data received');
+        fullContent = '⚠️ No response received from server. The request may have timed out. Please try again.';
+      }
+
+      // Try parse any final pending line.
+      const tail = pending.trim();
+      if (tail) {
+        try {
+          const parsed = JSON.parse(tail);
+          if (parsed.type === "text_delta") {
+            fullContent += parsed.content;
+            setMessages(prev => prev.map(m => 
+              m.id === assistantMessageId ? { ...m, content: fullContent } : m
+            ));
+          } else if (parsed.type === "sources") {
+            sources = parsed.content;
+            setMessages(prev => prev.map(m => 
+              m.id === assistantMessageId ? { ...m, sources } : m
+            ));
+          } else if (parsed.type === "status") {
+            setStreamingStatus(parsed.content || "");
+          } else if (parsed.type === "error") {
+            console.error("API Error (tail):", parsed.content);
+            fullContent += `\n\n❌ **Error**: ${parsed.content}`;
+            setMessages(prev => prev.map(m => 
+              m.id === assistantMessageId ? { ...m, content: fullContent } : m
+            ));
+          }
+        } catch {
+          // ignore JSON parsing errors
         }
       }
 
@@ -320,6 +410,8 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
       
+      console.error('Chat error:', err);
+      
       const errMsg: Message = {
         id: String(Date.now() + 2),
         content: `⚠️ Error: ${err.message || "I encountered an error processing your legal query. Please try again."}`,
@@ -328,7 +420,6 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
         status: "sent",
       };
       setMessages((prev) => [...prev, errMsg]);
-      console.error(err);
     } finally {
       setIsLoading(false);
       setStreamingStatus("");

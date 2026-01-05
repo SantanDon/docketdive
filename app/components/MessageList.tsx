@@ -55,7 +55,6 @@ export default function MessageList({
                 minute: '2-digit' 
               }) : undefined}
               sources={message.sources}
-              toolInvocation={message.toolInvocation}
             />
           );
         })}

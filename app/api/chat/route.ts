@@ -23,6 +23,9 @@ import {
   initializeMemoryCollection
 } from "../utils/conversation-memory";
 
+// Import rate limiter
+import { rateLimiter } from "../../utils/rate-limiter";
+
 // Import MAX_RECENT_MESSAGES for optimization
 const MAX_RECENT_MESSAGES = 15;
 import { manageContextWindow, extractKeyEntities, trackConversationEntities } from "../utils/context-manager";
@@ -66,6 +69,28 @@ export async function POST(request: Request) {
           return;
         }
 
+        // ===== RATE LIMITING & MODEL SELECTION =====
+        const limitCheck = rateLimiter.checkLimit(userId);
+        if (!limitCheck.allowed) {
+          sendChunk("error", `Rate limit exceeded: ${limitCheck.reason}`);
+          sendChunk("metadata", {
+            quotaRemaining: limitCheck.quotaRemaining,
+            recommendedModel: limitCheck.model,
+            mode: "RateLimited"
+          });
+          controller.close();
+          return;
+        }
+
+        // Track request start
+        rateLimiter.startRequest(userId);
+        const usageStats = rateLimiter.getUsageStats(userId);
+
+        sendChunk("status", `Rate limit: ${usageStats.requestsRemaining} requests remaining this hour`);
+
+        // Use the recommended model from rate limiter (may switch to Ollama if GROQ is nearly full)
+        let effectiveProvider = limitCheck.model;
+
         const query = message.trim();
         
         // 1. Initial Status
@@ -86,8 +111,13 @@ export async function POST(request: Request) {
         const memoryContextStr = formatMemoryContextForPrompt(memoryContext);
         const ragContext = buildContext(docs);
         
-        // ACCURACY CHECK: Detect queries that might lead to hallucination
-        let hasContext = ragContext.length > 0;
+        // ACCURACY CHECK: Determine whether we have usable context.
+        // IMPORTANT: buildContext() can return an empty string if it filters aggressively.
+        // We should treat having retrieved docs as context, and let downstream prompt enforce citation discipline.
+        let hasContext = Array.isArray(docs) && docs.length > 0;
+        const debugNoContextReasons: string[] = [];
+        if (!hasContext) debugNoContextReasons.push('no_docs_returned');
+        if (hasContext && !ragContext) debugNoContextReasons.push('context_builder_returned_empty');
         const casePattern = /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+v\.?\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i;
         const queryCaseMatch = query.match(casePattern);
         
@@ -102,8 +132,10 @@ export async function POST(request: Request) {
         if (hasFakeConcept) {
           console.log(`⚠️ ACCURACY CHECK: Fake legal concept detected in query - treating as no context`);
           hasContext = false;
+          debugNoContextReasons.push('fake_concept');
         }
         
+        // ONLY check case existence if user is asking about a SPECIFIC case by name
         if (queryCaseMatch && hasContext) {
           // User is asking about a specific case - verify it exists in sources
           const queryCaseName = queryCaseMatch[0].toLowerCase().replace(/\./g, '');
@@ -120,10 +152,12 @@ export async function POST(request: Request) {
           if (!caseInSources) {
             console.log(`⚠️ ACCURACY CHECK: Case "${queryCaseMatch[0]}" not found in sources - treating as no context`);
             hasContext = false;
+            debugNoContextReasons.push('case_not_in_sources');
           }
         }
         
         // For topic queries asking for cases, verify we have relevant cases
+        // BUT: Only reject if it's SPECIFICALLY asking for cases, not general legal concepts
         if (isTopicQuery && hasContext) {
           const queryLower = query.toLowerCase();
           const sourceContent = docs.map(d => (d.content || '').toLowerCase()).join(' ');
@@ -136,8 +170,28 @@ export async function POST(request: Request) {
             if (!sourceContent.includes(topic) && !sourceContent.includes(topic.split(' ')[0] || '')) {
               console.log(`⚠️ ACCURACY CHECK: Topic "${topic}" not found in sources - treating as no context`);
               hasContext = false;
+              debugNoContextReasons.push('topic_not_in_sources');
             }
           }
+        }
+        
+        // IMPORTANT: If we have documents, trust them unless we have a specific reason not to
+        // General legal concept questions (like "What makes a will legally binding?") should use the context
+        if (docs.length > 0 && !hasFakeConcept && !queryCaseMatch) {
+          hasContext = true;
+          console.log(`✅ ACCURACY CHECK: General legal concept query with ${docs.length} relevant sources - using context`);
+        }
+
+        // Emit debug metadata (safe) to help diagnose "no sources" in production without burning tokens.
+        // This shows *why* the system decided it has no context.
+        if (!hasContext) {
+          sendChunk("metadata", {
+            mode: "NoSourcesDebug",
+            reasons: debugNoContextReasons,
+            docsReturned: Array.isArray(docs) ? docs.length : 0,
+            ragContextLength: ragContext?.length || 0,
+            minSimilarityThreshold: MIN_SIMILARITY_THRESHOLD,
+          });
         }
 
         // 3. Send Sources as soon as they are ready
@@ -150,7 +204,7 @@ export async function POST(request: Request) {
         if (!hasContext || docs.length === 0) {
           sendChunk("status", "No specific legal sources found. Providing general guidance...");
         } else {
-          sendChunk("status", "Reading relevant documents...");
+          sendChunk("status", `Reading ${docs.length} relevant document(s)...`);
         }
 
         // 4. Build Prompt
@@ -295,19 +349,97 @@ I cannot provide case citations without verified sources, as legal accuracy is p
         }
         
         let fullAnswer = "";
-        const responseStream = generateResponseStream(query, contextWindow.ragContext, hasContext, provider, finalPrompt);
-        
-        for await (const delta of responseStream) {
-          fullAnswer += delta;
-          sendChunk("text_delta", delta);
+        try {
+          console.log(`[Chat] Starting response generation with provider: ${effectiveProvider}`);
+          const responseStream = generateResponseStream(query, contextWindow.ragContext, hasContext, effectiveProvider, finalPrompt);
+          
+          // Add timeout wrapper around stream
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Response generation timeout after 120s')), 120000)
+          );
+          
+          let streamComplete = false;
+          const streamPromise = (async () => {
+            try {
+              for await (const delta of responseStream) {
+                if (!delta) {
+                  console.warn('[Chat] Received empty delta');
+                  continue;
+                }
+                fullAnswer += delta;
+                sendChunk("text_delta", delta);
+              }
+              streamComplete = true;
+            } catch (error) {
+              throw error;
+            }
+          })();
+          
+          // Race with timeout
+          try {
+            await Promise.race([streamPromise, timeoutPromise]);
+          } catch (timeoutError) {
+            if (!streamComplete && fullAnswer.length > 0) {
+              console.log('[Chat] Stream timeout but partial content received:', fullAnswer.length);
+              // Continue with partial content
+            } else if (!fullAnswer) {
+              throw timeoutError;
+            }
+          }
+          
+          if (!fullAnswer) {
+            console.warn('[Chat] Response stream produced no content');
+            sendChunk("error", "No response generated from AI model - stream timed out or returned empty");
+          }
+        } catch (error: any) {
+          console.error('[Chat] Stream error:', error);
+          // Handle GROQ rate limit errors
+          if (error.status === 429 || error.message?.includes("Rate limit")) {
+            const rotationResult = rateLimiter.handleGroqRateLimit(userId);
+            
+            if (rotationResult.action === 'rotateKey') {
+              sendChunk("error", `GROQ API limit hit. Rotated to backup key. Retrying request...`);
+              sendChunk("metadata", {
+                mode: "KeyRotated",
+                sourcesUsed: sources.length,
+                responseTime: ((Date.now() - start) / 1000).toFixed(2) + "s",
+                action: "rotateKey",
+                nextKey: "GROQ_KEY_2"
+              });
+            } else {
+              sendChunk("error", "All GROQ keys exhausted. Switched to local model for this response.");
+              sendChunk("metadata", {
+                mode: "RateLimited",
+                sourcesUsed: sources.length,
+                responseTime: ((Date.now() - start) / 1000).toFixed(2) + "s",
+                modelSwitched: true,
+                nextModelWillBe: "ollama"
+              });
+            }
+            
+            rateLimiter.endRequest(userId, 0);
+            controller.close();
+            return;
+          }
+          
+          sendChunk("error", `Failed to generate response: ${error.message || error}`);
+          throw error;
         }
 
         // 6. Final Metadata & Background Tasks
         const responseTime = ((Date.now() - start) / 1000).toFixed(2) + "s";
+        
+        // Estimate tokens used (rough: ~4 chars per token)
+        const estimatedTokens = Math.ceil((query.length + fullAnswer.length) / 4);
+        rateLimiter.endRequest(userId, estimatedTokens);
+
         sendChunk("metadata", {
           mode: hasContext ? "RAG" : "Conversational",
           sourcesUsed: sources.length,
-          responseTime
+          responseTime,
+          modelUsed: effectiveProvider,
+          estimatedTokensUsed: estimatedTokens,
+          quotaRemaining: rateLimiter.getUsageStats(userId)
         });
 
         (async () => {
