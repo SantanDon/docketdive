@@ -60,9 +60,161 @@ export const KEYWORD_GATE_ENABLED = false;
 
 // Query expansion is important for recall (especially for POPIA/CPA/etc.).
 // Keep it on in production, but the semantic-search implementation already limits expansions.
-export const SKIP_QUERY_EXPANSION_IN_PROD = false;
+// Query expansion is important for recall (especially for POPIA/CPA/etc.).
+// Keep it on in production, but the semantic-search implementation already limits expansions.
+export const SKIP_QUERY_EXPANSION_IN_PROD = true;
 
-// ========================= CLIENTS =========================
+// ========================= LLM PROVIDER FALLBACK CHAIN =========================
+// Multi-provider fallback for reliability (CRITICAL FIX)
+// Works across deployments: Vercel, HuggingFace Spaces, local
+export const LLM_PROVIDERS = [
+  { name: 'groq' as const, model: 'llama-3.1-8b-instant', priority: 1, maxRetries: 2 },
+  { name: 'ollama' as const, model: process.env.CHAT_MODEL || 'qwen-ultra-fast:latest', priority: 2, maxRetries: 1 },
+] as const;
+
+export type LLMProvider = 'groq' | 'ollama';
+
+export function getAvailableProvider(): LLMProvider {
+  if (GROQ_API_KEY && GROQ_API_KEY.length > 0) {
+    return 'groq';
+  }
+  return 'ollama';
+}
+
+export async function createChatModelWithFallback(
+  retries: number = 3
+): Promise<{ model: any; provider: LLMProvider; success: boolean }> {
+  const errors: string[] = [];
+  const maxProviders = LLM_PROVIDERS.length;
+
+  for (let attempt = 0; attempt < retries && attempt < maxProviders; attempt++) {
+    const currentProvider = LLM_PROVIDERS[attempt];
+    if (!currentProvider) continue;
+
+    try {
+      let chatModel;
+
+      if (currentProvider.name === 'groq' && GROQ_API_KEY) {
+        chatModel = new ChatGroq({
+          apiKey: GROQ_API_KEY,
+          model: currentProvider.model,
+          temperature: 0,
+          maxTokens: 3000,
+        });
+        console.log(`🔄 Using Groq model: ${currentProvider.model}`);
+      } else {
+        // Ollama - works on local, may not work on HuggingFace
+        chatModel = new ChatOllama({
+          baseUrl: OLLAMA_BASE_URL,
+          model: currentProvider.model,
+          temperature: 0.05,
+          numCtx: 6144,
+          numPredict: 3000,
+        });
+        console.log(`🔄 Using Ollama model: ${currentProvider.model}`);
+      }
+
+      return { model: chatModel, provider: currentProvider.name, success: true };
+    } catch (err: any) {
+      const errorMsg = `Provider ${currentProvider.name} failed: ${err.message}`;
+      console.error(`❌ ${errorMsg}`);
+      errors.push(errorMsg);
+
+      // Wait before retry (exponential backoff)
+      if (attempt < retries - 1 && attempt < maxProviders - 1) {
+        const waitTime = Math.pow(2, attempt) * 1000;
+        console.log(`⏳ Waiting ${waitTime}ms before retry...`);
+        await new Promise(r => setTimeout(r, waitTime));
+      }
+    }
+  }
+
+  console.error(`❌ All LLM providers failed: ${errors.join('; ')}`);
+  return { model: null, provider: 'ollama', success: false };
+}
+
+// ========================= EMBEDDING IMPROVEMENT =========================
+// Better fallback than simple hashing - use vocabulary-based TF-IDF
+// Compatible with all deployments (local, Vercel, HuggingFace)
+// NOTE: Must match EXPECTED_DIMENSIONS (1024) for AstraDB compatibility
+export function generateVocabularyEmbedding(text: string): number[] {
+  const VECTOR_DIM = EXPECTED_DIMENSIONS; // 1024 - matches AstraDB schema
+  const embedding = new Array(VECTOR_DIM).fill(0);
+
+  // Common legal terms with higher weights (for SA law context)
+  const legalTerms: Record<string, number> = {
+    'contract': 2.0, 'agreement': 2.0, 'law': 1.8, 'court': 1.8,
+    'plaintiff': 1.5, 'defendant': 1.5, 'judgment': 1.5, 'act': 1.5,
+    'section': 1.3, 'party': 1.3, 'case': 1.3, 'legal': 1.3,
+    'right': 1.2, 'duty': 1.2, 'obligation': 1.2, 'breach': 1.2,
+    'damages': 1.2, 'claim': 1.2, 'evidence': 1.2, 'hearing': 1.2,
+    'appeal': 1.1, 'dismissal': 1.1, 'employment': 1.1, 'dismiss': 1.1,
+    // South African specific
+    'constitution': 1.5, 'popia': 1.5, 'labour': 1.3, 'high court': 1.3,
+    'constitutional court': 1.4, 'commission': 1.2,
+  };
+
+  const normalized = text.toLowerCase().replace(/[^a-z0-9\s]/g, ' ');
+  const words = normalized.split(/\s+/).filter(w => w.length > 0);
+
+  if (words.length === 0) {
+    return embedding;
+  }
+
+  // Create word frequency map
+  const wordFreq = new Map<string, number>();
+  for (const word of words) {
+    wordFreq.set(word, (wordFreq.get(word) || 0) + 1);
+  }
+
+  // TF-IDF style weighting
+  const maxFreq = Math.max(...wordFreq.values());
+  for (const [word, freq] of wordFreq) {
+    const tf = freq / maxFreq;
+    const idf = Math.log(words.length / (1 + freq));
+    let weight = tf * idf;
+
+    // Boost legal terms
+    for (const [term, boost] of Object.entries(legalTerms)) {
+      if (word.includes(term) || term.includes(word)) {
+        weight *= boost;
+        break;
+      }
+    }
+
+    // Distribute across embedding dimensions using hash
+    const hash1 = stringHash(word) % VECTOR_DIM;
+    const hash2 = (stringHash(word) >> 16) % VECTOR_DIM;
+    const hash3 = (stringHash(word) >> 32) % VECTOR_DIM;
+
+    embedding[hash1] += weight;
+    embedding[hash2] += weight * 0.5;
+    embedding[hash3] += weight * 0.25;
+  }
+
+  // Normalize
+  const magnitude = Math.sqrt(embedding.reduce((sum, val) => sum + val * val, 0));
+  if (magnitude > 0) {
+    for (let i = 0; i < embedding.length; i++) {
+      embedding[i] /= magnitude;
+    }
+  }
+
+  return embedding;
+}
+
+// Simple string hash function
+function stringHash(str: string): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return Math.abs(hash);
+}
+
+// ========================= ASTRA DB CLIENTS =========================
 export let db: any = null;
 export let collection: any = null;
 
@@ -101,47 +253,6 @@ initAstra();
 const embeddingCache = new Map<string, { embedding: number[], timestamp: number }>();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
-// Simple embedding for 0-cost compatibility with stored data
-function generateSimpleEmbedding(text: string): number[] {
-  const VECTOR_DIM = 1024;
-  const embedding = new Array(VECTOR_DIM).fill(0);
-  const normalized = text.toLowerCase().replace(/[^a-z0-9\s]/g, ' ');
-  const words = normalized.split(/\s+/).filter(w => w.length > 0);
-
-  for (let i = 0; i < words.length; i++) {
-    const word = words[i];
-    if (!word || word.length === 0) continue;
-    for (let j = 0; j < word.length; j++) {
-      const charCode = word.charCodeAt(j);
-      const idx1 = (charCode * (i + 1) * (j + 1)) % VECTOR_DIM;
-      const idx2 = (charCode * (i + 2) * (j + 3)) % VECTOR_DIM;
-      embedding[idx1] += 1 / (1 + Math.log(words.length + 1));
-      embedding[idx2] += 0.5 / (1 + Math.log(words.length + 1));
-    }
-  }
-
-  const magnitude = Math.sqrt(embedding.reduce((sum, val) => sum + val * val, 0));
-  if (magnitude > 0) {
-    for (let i = 0; i < embedding.length; i++) {
-      embedding[i] /= magnitude;
-    }
-  }
-
-  return embedding;
-}
-
-// Cloud embedding via Hugging Face - Single or Batch (DISABLED for 0-cost)
-async function fetchCloudEmbeddings(inputs: string | string[]): Promise<number[][]> {
-  console.log('🔧 Using simple embeddings for 0-cost compatibility');
-  // Return empty to fall back to simple
-  return [];
-}
-
-async function getCloudEmbedding(text: string): Promise<number[]> {
-  const results = await fetchCloudEmbeddings(text);
-  return results[0] || [];
-}
-
 export async function getEmbedding(text: string, retries = 2): Promise<number[]> {
   console.time(`⏱️ Embedding [${text.substring(0, 20)}...]`);
   const textToEmbed = text.trim();
@@ -156,22 +267,21 @@ export async function getEmbedding(text: string, retries = 2): Promise<number[]>
   }
   
   const isProduction = process.env.NODE_ENV === "production" || process.env.VERCEL === "1";
-  
-  // Use the constant or the direct env var, trimmed
   const hfKey = (HUGGINGFACE_API_KEY || process.env.HUGGINGFACE_API_KEY || "").trim();
   const useCloud = isProduction || hfKey.length > 0 || !OLLAMA_BASE_URL.includes("localhost");
 
-   for (let i = 0; i < retries; i++) {
+  for (let i = 0; i < retries; i++) {
     try {
       let embedding: number[];
 
       if (useCloud && hfKey) {
         console.log(`☁️ Using Cloud Embedding (HF) for queries`);
+        // Try HuggingFace first, fallback to vocabulary embedding
         const results = await fetchCloudEmbeddings(textToEmbed);
-        embedding = results[0] || generateSimpleEmbedding(textToEmbed);
+        embedding = results[0] || generateVocabularyEmbedding(textToEmbed);
       } else {
-        console.log('🔧 Using simple embeddings for queries');
-        embedding = generateSimpleEmbedding(textToEmbed);
+        console.log('🔧 Using vocabulary embeddings for queries');
+        embedding = generateVocabularyEmbedding(textToEmbed);
       }
 
       if (!embedding || embedding.length === 0) throw new Error("Empty embedding received");
@@ -197,6 +307,38 @@ export async function getEmbedding(text: string, retries = 2): Promise<number[]>
   }
   console.timeEnd(`⏱️ Embedding [${text.substring(0, 20)}...]`);
   return []; // Fallback
+}
+
+// Cloud embedding via Hugging Face
+async function fetchCloudEmbeddings(inputs: string | string[]): Promise<number[][]> {
+  const hfKey = (HUGGINGFACE_API_KEY || process.env.HUGGINGFACE_API_KEY || "").trim();
+  if (!hfKey) {
+    console.log('🔧 No HF key, using vocabulary embeddings');
+    return [];
+  }
+
+  try {
+    const inputsArr = Array.isArray(inputs) ? inputs : [inputs];
+    const response = await fetch(`https://api-inference.huggingface.co/pipeline/feature-extraction/${HF_EMBED_MODEL}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${hfKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ inputs: inputsArr, options: { wait_for_model: true } }),
+    });
+
+    if (!response.ok) {
+      console.warn(`⚠️ HF API returned ${response.status}, using vocabulary fallback`);
+      return [];
+    }
+
+    const data = await response.json();
+    return Array.isArray(data) ? data.map((vec: number[]) => vec.slice(0, EXPECTED_DIMENSIONS)) : [];
+  } catch (err) {
+    console.warn('⚠️ HF embedding fetch failed:', err);
+    return [];
+  }
 }
 
 /**
@@ -230,21 +372,13 @@ export async function getEmbeddings(texts: string[], retries = 2): Promise<numbe
     return results as number[][];
   }
 
-  const isProduction = process.env.NODE_ENV === "production" || process.env.VERCEL === "1";
-  const hfKey = (HUGGINGFACE_API_KEY || process.env.HUGGINGFACE_API_KEY || "").trim();
-  const useCloud = isProduction || hfKey.length > 0 || !OLLAMA_BASE_URL.includes("localhost");
-
   // 2. Fetch missing embeddings
   let fetchedEmbeddings: number[][] = [];
   
   for (let i = 0; i < retries; i++) {
     try {
-      if (useCloud && hfKey) {
-        fetchedEmbeddings = await fetchCloudEmbeddings(missingTexts);
-      } else {
-        // Fallback to sequential for local/other
-        fetchedEmbeddings = await Promise.all(missingTexts.map(t => getEmbedding(t, 1)));
-      }
+      // Use vocabulary embedding for missing texts (no HF dependency)
+      fetchedEmbeddings = await Promise.all(missingTexts.map(t => generateVocabularyEmbeddingPromise(t)));
       break;
     } catch (err) {
       console.error(`Batch embedding attempt ${i + 1} failed:`, err);
@@ -267,8 +401,12 @@ export async function getEmbeddings(texts: string[], retries = 2): Promise<numbe
   return results as number[][];
 }
 
+async function generateVocabularyEmbeddingPromise(text: string): Promise<number[]> {
+  return generateVocabularyEmbedding(text);
+}
+
 // ========================= RETRIEVAL =========================
-export async function retrieveRelevantDocuments(query: string, conversationContext?: string) {
+export async function retrieveRelevantDocuments(query: string, conversationContext?: string, userId?: string, privacyMode: boolean = false) {
   let results: any[] = [];
   const startTime = Date.now();
 
@@ -281,6 +419,28 @@ export async function retrieveRelevantDocuments(query: string, conversationConte
 
   try {
     console.log(`\n🔍 === RETRIEVAL START for: "${query}" ===`);
+    
+    // Build user filter for privacy isolation
+    // Privacy mode is OPT-IN (disabled by default due to performance impact with large collections)
+    let userFilter: any = {};
+    
+    // privacyMode is passed from client - controls whether to filter by userId
+    if (userId && privacyMode) {
+      userFilter = {
+        $or: [
+          { 'metadata.userId': userId },
+          { 'metadata.isPrivate': { $exists: false } },
+          { 'metadata.isPrivate': false }
+        ]
+      };
+      console.log(`🔒 Privacy filter ENABLED for user: ${userId.substring(0, 20)}...`);
+    } else if (userId) {
+      console.log(`🔓 Privacy filter disabled - returning all documents (user: ${userId.substring(0, 20)}...)`);
+    } else {
+      console.log(`ℹ️ No userId provided`);
+    }
+    
+    console.log(`🔍 Filter: ${JSON.stringify(userFilter).substring(0, 150)}... (privacy: ${privacyMode})`);
     
     // CONTEXT-AWARE QUERY ENHANCEMENT
     // If we have conversation context, enrich the query with it
@@ -361,15 +521,27 @@ export async function retrieveRelevantDocuments(query: string, conversationConte
     // Wait for ORIGINAL query embedding first (fastest)
     const originalVector = await originalQueryEmbeddingPromise;
     
-    // Launch ORIGINAL database search IMMEDIATELY
+    // Launch ORIGINAL database search IMMEDIATELY with user filter
     const originalSearchPromise = (async () => {
       if (!originalVector || originalVector.length === 0) return [];
-      return await collection.find({}, {
+      
+      // Increase timeout for vector search (can take 5-15s with large collections)
+      const ASTRA_TIMEOUT_MS = parseInt(process.env.ASTRA_SEARCH_TIMEOUT_MS || '15000', 10);
+      console.log(`🔍 Starting Astra search with ${ASTRA_TIMEOUT_MS}ms timeout, filter: ${JSON.stringify(userFilter).substring(0, 100)}...`);
+      
+      const dbPromise = collection.find(userFilter, {
         sort: { $vector: originalVector },
         limit: TOP_K,
         includeSimilarity: true,
         projection: { content: 1, metadata: 1 },
       }).toArray();
+
+      const timeoutPromise = new Promise<any[]>((resolve) => setTimeout(() => {
+        console.warn(`⚠️ Astra DB Original Search Timed Out (${ASTRA_TIMEOUT_MS}ms)`);
+        resolve([]);
+      }, ASTRA_TIMEOUT_MS));
+
+      return Promise.race([dbPromise, timeoutPromise]);
     })();
 
     // While original search is running, wait for expansion results
@@ -390,17 +562,26 @@ export async function retrieveRelevantDocuments(query: string, conversationConte
 
     const expansionVectors = await expansionVectorsPromise;
     
-    // Launch expansion database searches concurrently
+    // Launch expansion database searches concurrently with user filter
     const expansionSearchPromises = expansionQueries.map((q, idx) => (async () => {
       const vector = expansionVectors[idx];
       if (!vector || vector.length === 0) return [];
       const limit = Math.ceil(TOP_K * 0.5);
-      return await collection.find({}, {
+      
+      const ASTRA_TIMEOUT_MS = parseInt(process.env.ASTRA_SEARCH_TIMEOUT_MS || '15000', 10);
+      const dbPromise = collection.find(userFilter, {
         sort: { $vector: vector },
         limit: limit,
         includeSimilarity: true,
         projection: { content: 1, metadata: 1 },
       }).toArray();
+
+      const timeoutPromise = new Promise<any[]>((resolve) => setTimeout(() => {
+        console.warn(`⚠️ Astra DB Expansion Search Timed Out (${ASTRA_TIMEOUT_MS}ms)`);
+        resolve([]);
+      }, ASTRA_TIMEOUT_MS));
+
+      return Promise.race([dbPromise, timeoutPromise]);
     })());
 
     // Merge original results with expanded results as they arrive
@@ -480,7 +661,8 @@ export function buildContext(docs: any[]): string {
 
 // ========================= ENHANCED SYSTEM PROMPT =========================
 export function getSystemPrompt(hasContext: boolean, currentDate: string): string {
-  const BASE = `You are DocketDive, a South African legal assistant. Current date: ${currentDate}
+  const BASE = `You are DocketDive, a South African legal assistant. Current date: ${currentDate}.
+You are equipped with a SAFLII MCP extension that allows you to search and retrieve South African case law in real-time when local sources are insufficient.
 
 For greetings: Respond briefly (1 sentence) and warmly.
 
@@ -492,6 +674,7 @@ For **substantive legal questions**, you MUST use this structured format (unless
    - Case name in bold,
    - Year and citation where available,
    - One short sentence on why the case is relevant.
+   - If sourced from SAFLII, clearly state "[Source: SAFLII MCP]" after the citation.
 4. **Relevant Legislation** – bullet list of Acts / sections, with a one-line explanation of each.
 5. **Practical Guidance** – 3–5 bullets on what a South African user should practically do / be aware of.
 6. **Legal Disclaimer** – short paragraph making it clear the information is educational and not legal advice.
@@ -503,7 +686,7 @@ STYLE RULES:
 - Prefer concise sentences and bullet points over long paragraphs.
 - Always prefer South African authority (Constitution, SA statutes, SA case law).
 - Never fabricate laws or cases; if unsure, say so plainly.
-- If the question is not strictly legal, still try to keep a helpful, structured explanation.`;
+- If results were found via SAFLII, acknowledge this as a real-time retrieval from the official SAFLII database.`;
 
   if (!hasContext) {
     return `${BASE}

@@ -6,8 +6,9 @@ import { motion } from "framer-motion";
 import {
   ChevronRight,
   Sparkles,
+  Scale,
 } from "lucide-react";
-import { SpotlightCard } from "@/components/ui/spotlight-card";
+import { EnhancedToolCard } from "@/components/EnhancedToolCard";
 import { ToolIconMedium } from "@/components/ui/tool-icons";
 import { cn } from "@/lib/utils";
 
@@ -60,7 +61,7 @@ const containerVariants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
-    transition: { staggerChildren: 0.08 }
+    transition: { staggerChildren: 0.1 }
   }
 };
 
@@ -80,39 +81,10 @@ const ToolCard = memo(function ToolCard({
   return (
     <motion.div variants={itemVariants}>
       <Link href={tool.href} prefetch={true}>
-        <SpotlightCard 
-          className="h-full cursor-pointer group hover:shadow-2xl hover:shadow-primary/5 transition-all duration-500 border-border/40"
-          spotlightColor={tool.spotlightColor}
-        >
-          <div className="p-8 h-full flex flex-col">
-            <div className="flex items-start gap-5">
-              <motion.div 
-                whileHover={{ scale: 1.1, rotate: 5 }}
-                transition={{ type: "spring", stiffness: 400, damping: 17 }}
-                className="transition-transform duration-500 group-hover:scale-110"
-              >
-                <ToolIconMedium toolId={tool.id} />
-              </motion.div>
-              <div className="flex-1 min-w-0">
-                <h2 className="text-xl font-bold text-foreground group-hover:text-primary transition-colors duration-300 leading-tight">
-                  {tool.name}
-                </h2>
-                <p className="text-sm text-muted-foreground mt-2 leading-relaxed opacity-80 group-hover:opacity-100 transition-opacity duration-300">
-                  {tool.description}
-                </p>
-              </div>
-            </div>
-            <div className="mt-8 pt-6 border-t border-border/30 flex items-center justify-between group/footer">
-              <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground/60 group-hover:text-primary/70 transition-colors duration-300">Explore Tool</span>
-              <motion.div
-                whileHover={{ x: 5 }}
-                className="h-10 w-10 rounded-full bg-secondary/50 flex items-center justify-center group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-300"
-              >
-                <ChevronRight size={18} className="transition-transform duration-300" />
-              </motion.div>
-            </div>
-          </div>
-        </SpotlightCard>
+        <EnhancedToolCard
+          {...tool}
+          index={index}
+        />
       </Link>
     </motion.div>
   );
@@ -121,27 +93,42 @@ const ToolCard = memo(function ToolCard({
 export default function ToolsPage() {
   return (
     <div className="max-w-5xl mx-auto">
-      {/* Header */}
+      {/* Enhanced Header */}
       <motion.div 
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: [0.21, 0.47, 0.32, 0.98] }}
         className="text-center mb-12"
       >
         <motion.div
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          transition={{ type: "spring", stiffness: 200, damping: 20 }}
+          transition={{ type: "spring", stiffness: 200, damping: 20, delay: 0.1 }}
           className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-6"
         >
           <Sparkles size={14} className="text-primary" />
-          <span className="text-sm font-medium text-primary">Professional Legal Tools</span>
+          <span className="text-sm font-medium text-primary">Professional Legal Suite</span>
         </motion.div>
-        <h1 className="text-4xl md:text-5xl font-bold text-gradient mb-4">
+        
+        <motion.h1
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2, duration: 0.5 }}
+          className="text-4xl md:text-5xl font-bold text-gradient mb-4"
+        >
           Legal Tools Suite
-        </h1>
-        <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-          Powerful AI-assisted tools to help with your legal research, document analysis, and preparation
-        </p>
+        </motion.h1>
+        
+        <motion.p
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3, duration: 0.5 }}
+          className="text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed"
+        >
+          Powerful AI-assisted tools to help with your legal research, 
+          document analysis, and preparation. Professional-grade analysis 
+          for South African law.
+        </motion.p>
       </motion.div>
 
       {/* Tools Grid */}
@@ -160,10 +147,10 @@ export default function ToolsPage() {
       <motion.p 
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ delay: 0.5 }}
+        transition={{ delay: 0.8 }}
         className="text-center text-sm text-muted-foreground mt-12"
       >
-        All tools support drag-and-drop document upload
+        All tools support drag-and-drop document upload • Powered by AI
       </motion.p>
     </div>
   );

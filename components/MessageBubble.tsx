@@ -47,82 +47,77 @@ export default function MessageBubble({
       isUser ? "justify-end" : "justify-start"
     )}>
       <div className={cn(
-        "flex max-w-[85%] md:max-w-[75%] gap-3",
+        "flex max-w-full gap-4 md:gap-6",
         isUser ? "flex-row-reverse" : "flex-row"
       )}>
-        <div className={cn(
-          "shrink-0 w-8 h-8 rounded-lg flex items-center justify-center shadow-sm mt-1",
-          isUser
-            ? "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
-            : "bg-gradient-to-br from-blue-600 to-cyan-500 text-white shadow-md"
-        )}>
-          {isUser ? (
-            <User className="h-4 w-4" />
-          ) : isStudentMode ? (
-            <GraduationCap className="h-4 w-4" />
-          ) : (
-            <Bot className="h-4 w-4" />
-          )}
+        {/* Avatar Area */}
+        <div className="shrink-0 pt-1">
+          <div className={cn(
+            "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold",
+            isUser ? "bg-muted text-muted-foreground" : "bg-primary text-primary-foreground"
+          )}>
+            {isUser ? <User className="h-4 w-4" /> : <Scale className="h-4 w-4" />}
+          </div>
         </div>
 
-        <div className="flex flex-col min-w-0">
-          <div className={cn(
-            "flex items-center mb-1 px-1",
-            isUser ? "justify-end" : "justify-start"
-          )}>
-            <span className="text-xs font-medium text-muted-foreground">
-              {isUser ? "You" : "Legal Assistant"}
+        {/* Message Content Area */}
+        <div className={cn(
+          "flex flex-col gap-1.5 min-w-0 max-w-[85%] md:max-w-[80%]",
+          isUser ? "items-end" : "items-start"
+        )}>
+           {/* Sender Name & Timestamp - Subtle */}
+           <div className="flex items-center gap-2 px-1">
+            <span className="text-[10px] font-bold text-muted-foreground/40 uppercase tracking-widest">
+              {isUser ? "You" : "DocketDive Assistant"}
             </span>
-            <span className="text-[10px] text-muted-foreground/60 ml-2">
+            <span className="text-[10px] text-muted-foreground/20">•</span>
+            <span className="text-[10px] text-muted-foreground/30 font-medium whitespace-nowrap">
               {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </span>
           </div>
 
+          {/* Bubble/Content Container */}
           <div className={cn(
-            "rounded-2xl p-4 shadow-sm relative group",
-            isUser
-              ? "bg-legal-blue-600 text-white rounded-tr-sm"
-              : "bg-card border border-border rounded-tl-sm"
+            "relative text-[15px] leading-relaxed group",
+            isUser 
+              ? "bg-muted/50 text-foreground px-4 py-3 rounded-2xl rounded-tr-none border border-border/10 shadow-sm" 
+              : "text-foreground pt-1.5"
           )}>
-            {isStudentMode && !isUser && (
-              <Badge variant="secondary" className="mb-3 bg-amber-100 text-amber-800 hover:bg-amber-200 border-amber-200 dark:bg-amber-900/30 dark:text-amber-200 dark:border-amber-800">
-                <GraduationCap className="h-3 w-3 mr-1" />
-                Student Mode: {eliLevel}
-              </Badge>
+            {isUser ? (
+              <p className="whitespace-pre-wrap">{message.content}</p>
+            ) : (
+              <div className="prose-wilson">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    p: ({ node, ...props }) => <p className="mb-4 last:mb-0" {...props} />,
+                    a: ({ node, ...props }) => <a className="text-primary hover:underline font-medium" {...props} target="_blank" rel="noopener noreferrer" />,
+                    code: ({ node, ...props }) => <code className="bg-muted/50 px-1.5 py-0.5 rounded text-xs font-mono" {...props} />,
+                    ul: ({ node, ...props }) => <ul className="list-disc pl-5 my-4 space-y-2" {...props} />,
+                    ol: ({ node, ...props }) => <ol className="list-decimal pl-5 my-4 space-y-2" {...props} />,
+                    blockquote: ({ node, ...props }) => <blockquote className="border-l-4 border-primary/20 pl-4 italic my-4 text-muted-foreground" {...props} />,
+                  }}
+                >
+                  {message.content}
+                </ReactMarkdown>
+              </div>
             )}
 
-            <div className={cn(
-              "prose prose-sm dark:prose-invert max-w-none break-words text-sm md:text-base leading-relaxed",
-              isUser ? "prose-invert" : "prose-gray dark:prose-invert"
-            )}>
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                components={{
-                  p: ({ node, ...props }) => <p className="mb-3 last:mb-0" {...props} />,
-                  a: ({ node, ...props }) => <a className="text-legal-blue-500 hover:underline font-medium" {...props} target="_blank" rel="noopener noreferrer" />,
-                  code: ({ node, ...props }) => <code className="bg-muted/50 px-1.5 py-0.5 rounded text-xs font-mono" {...props} />,
-                  ul: ({ node, ...props }) => <ul className="list-disc pl-5 my-2 space-y-1" {...props} />,
-                  ol: ({ node, ...props }) => <ol className="list-decimal pl-5 my-2 space-y-1" {...props} />,
-                  blockquote: ({ node, ...props }) => <blockquote className="border-l-4 border-legal-blue-300 pl-4 italic my-3 text-muted-foreground" {...props} />,
-                }}
-              >
-                {message.content}
-              </ReactMarkdown>
-            </div>
-
             {!isUser && (
-              <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+              <div className="absolute top-0 -right-8 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-6 w-6 text-muted-foreground hover:text-foreground bg-background/50 backdrop-blur-sm rounded-md"
+                  className="h-7 w-7 text-muted-foreground/40 hover:text-foreground"
                   onClick={handleCopy}
                 >
-                  {copied ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
+                  {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                 </Button>
               </div>
             )}
           </div>
+        </div>
+      </div>
 
           {!isUser && (
             <div className="flex items-center gap-2 mt-2 px-1">

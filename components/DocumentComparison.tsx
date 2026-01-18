@@ -294,7 +294,7 @@ export default function DocumentComparison({ onClose }: DocumentComparisonProps)
                     setDoc1FileName(null);
                   }}
                   placeholder="Paste the original document..."
-                  className="w-full h-48 px-4 py-3 border border-slate-200 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 resize-none text-sm font-mono focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all shadow-inner"
+                                    className="w-full h-48 px-4 py-3 border border-border/40 rounded-2xl bg-muted/10 text-foreground resize-none text-sm font-mono focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all shadow-inner"
                   disabled={loading}
                 />
                 </div>
@@ -332,7 +332,7 @@ export default function DocumentComparison({ onClose }: DocumentComparisonProps)
                     setDoc2FileName(null);
                   }}
                   placeholder="Paste the new/modified document..."
-                  className="w-full h-48 px-4 py-3 border border-border rounded-2xl bg-background text-foreground resize-none text-sm font-mono focus:ring-2 focus:ring-primary focus:border-transparent transition-all shadow-inner"
+                                    className="w-full h-48 px-4 py-3 border border-border/40 rounded-2xl bg-muted/10 text-foreground resize-none text-sm font-mono focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all shadow-inner"
                   disabled={loading}
                 />
                 </div>

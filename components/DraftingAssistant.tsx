@@ -233,14 +233,14 @@ export default function DraftingAssistant({ onClose }: DraftingAssistantProps) {
                 <div className="relative">
                   <button
                     onClick={() => setShowTypeDropdown(!showTypeDropdown)}
-                    className="w-full flex items-center justify-between px-5 py-4 rounded-2xl bg-background border border-border gap-3 hover:border-indigo-500/50 hover:bg-muted/30 transition-all text-left group"
+                    className="w-full flex items-center justify-between px-5 py-4 rounded-2xl bg-background border border-border gap-3 hover:border-slate-500/50 hover:bg-muted/30 transition-all text-left group"
                   >
                     <div className="flex items-center gap-3">
                       {selectedTemplate ? (
                         <>
                           {(() => {
                             const Icon = documentIcons[selectedType!];
-                            return <Icon size={22} className="text-indigo-500" />;
+                            return <Icon size={22} className="text-slate-500" />;
                           })()}
                           <span className="font-medium text-foreground">{selectedTemplate.name}</span>
                         </>
@@ -276,11 +276,11 @@ export default function DraftingAssistant({ onClose }: DraftingAssistantProps) {
                                   setShowTypeDropdown(false);
                                 }}
                                 className={`w-full flex items-start gap-4 p-4 rounded-2xl hover:bg-muted/80 transition-all text-left group ${
-                                  selectedType === template.documentType ? "bg-indigo-500/10" : ""
+                                  selectedType === template.documentType ? "bg-slate-500/10" : ""
                                 }`}
                               >
                                 <div className={`p-2 rounded-xl transition-colors ${
-                                  selectedType === template.documentType ? "bg-indigo-500 text-white" : "bg-muted group-hover:bg-indigo-500/20 text-muted-foreground group-hover:text-indigo-500"
+                                  selectedType === template.documentType ? "bg-slate-500 text-white" : "bg-muted group-hover:bg-slate-500/20 text-muted-foreground group-hover:text-slate-500"
                                 }`}>
                                   <Icon size={18} />
                                 </div>
@@ -306,7 +306,7 @@ export default function DraftingAssistant({ onClose }: DraftingAssistantProps) {
                 <div className="relative">
                   <button
                     onClick={() => setShowToneDropdown(!showToneDropdown)}
-                    className="w-full flex items-center justify-between px-5 py-4 rounded-2xl bg-background border border-border gap-3 hover:border-indigo-500/50 hover:bg-muted/30 transition-all text-left"
+                    className="w-full flex items-center justify-between px-5 py-4 rounded-2xl bg-background border border-border gap-3 hover:border-slate-500/50 hover:bg-muted/30 transition-all text-left"
                   >
                     <span className="font-medium text-foreground">
                       {selectedToneOption?.name || "Formal"}
@@ -333,7 +333,7 @@ export default function DraftingAssistant({ onClose }: DraftingAssistantProps) {
                               setShowToneDropdown(false);
                             }}
                             className={`w-full flex items-start gap-4 p-4 rounded-2xl hover:bg-muted/80 transition-all text-left ${
-                              selectedTone === tone.id ? "bg-indigo-500/10" : ""
+                              selectedTone === tone.id ? "bg-slate-500/10" : ""
                             }`}
                           >
                             <div className="flex-1">
@@ -341,7 +341,7 @@ export default function DraftingAssistant({ onClose }: DraftingAssistantProps) {
                               <p className="text-xs text-muted-foreground">{tone.description}</p>
                             </div>
                             {selectedTone === tone.id && (
-                              <div className="h-2 w-2 rounded-full bg-indigo-500 self-center" />
+                              <div className="h-2 w-2 rounded-full bg-slate-500 self-center" />
                             )}
                           </button>
                         ))}
@@ -360,7 +360,7 @@ export default function DraftingAssistant({ onClose }: DraftingAssistantProps) {
                   value={context}
                   onChange={(e) => setContext(e.target.value)}
                   placeholder="Describe the specific purpose, parties involved, and key terms for this draft..."
-                  className="w-full h-48 px-5 py-4 rounded-2xl bg-background border border-border/60 text-foreground resize-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 transition-all placeholder:text-muted-foreground/50 leading-relaxed"
+                  className="w-full h-48 px-5 py-4 rounded-2xl bg-background border border-border/60 text-foreground resize-none focus:ring-2 focus:ring-slate-500/30 focus:border-slate-500 transition-all placeholder:text-muted-foreground/50 leading-relaxed"
                 />
               </div>
             </div>
@@ -388,7 +388,7 @@ export default function DraftingAssistant({ onClose }: DraftingAssistantProps) {
               <motion.div
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: "auto" }}
-                className="mt-4 p-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400 text-sm font-medium text-center"
+                className="mt-4 p-4 rounded-2xl bg-slate-500/10 border border-slate-500/20 text-slate-600 dark:text-slate-400 text-sm font-medium text-center"
               >
                 {status}
               </motion.div>
@@ -443,7 +443,7 @@ export default function DraftingAssistant({ onClose }: DraftingAssistantProps) {
                   className="prose prose-slate dark:prose-invert max-w-none 
                     prose-headings:font-bold prose-headings:tracking-tight
                     prose-p:leading-relaxed prose-p:text-foreground/90 
-                    prose-strong:text-indigo-600 dark:prose-strong:text-indigo-400"
+                    prose-strong:text-slate-600 dark:prose-strong:text-slate-400"
                 >
                   <ReactMarkdown>{draft}</ReactMarkdown>
                 </motion.div>
@@ -453,7 +453,7 @@ export default function DraftingAssistant({ onClose }: DraftingAssistantProps) {
                     <FileText size={64} className="opacity-20" />
                     {loading && (
                       <motion.div
-                        className="absolute inset-0 border-2 border-indigo-500 rounded-full"
+                        className="absolute inset-0 border-2 border-slate-500 rounded-full"
                         animate={{ scale: [1, 1.2, 1], opacity: [0.5, 0, 0.5] }}
                         transition={{ repeat: Infinity, duration: 2 }}
                       />
@@ -473,7 +473,7 @@ export default function DraftingAssistant({ onClose }: DraftingAssistantProps) {
                 {draft && <span>WORDS: {draft.split(/\s+/).length}</span>}
               </div>
               <div className="flex items-center gap-1">
-                <Sparkles size={12} className="text-indigo-500" />
+                <Sparkles size={12} className="text-slate-500" />
                 <span>AI ASSISTED</span>
               </div>
             </div>

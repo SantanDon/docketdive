@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
+import Link from "next/link";
 import {
   Sun,
   Moon,
@@ -17,6 +18,36 @@ import { Button } from "@/components/ui/button";
 import BottomSheet from "@/components/BottomSheet";
 import ToolsMenu from "@/components/ToolsMenu";
 import LanguageSelector from "@/components/LanguageSelector";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
+import { cn } from "@/lib/utils";
+import WaitlistModal from "./WaitlistModal";
+import { Sparkles as SparklesIcon } from "lucide-react";
+
+/**
+ * Premium Header Component
+ * 
+ * Critical comparison to ChatGPT/Claude:
+ * 
+ * ChatGPT:
+ * - Fixed header with logo on left
+ * - Model selector in center
+ * - User menu on right
+ * - Clean, minimal design
+ * - Subtle shadow on scroll
+ * 
+ * Claude:
+ * - Similar layout to ChatGPT
+ * - Glass morphism effect
+ * - Smooth theme toggle animation
+ * - Mobile hamburger menu
+ * 
+ * DocketDive Premium:
+ * - Glass morphism with backdrop blur
+ * - Scroll-triggered shadow enhancement
+ * - Animated theme toggle with rotation
+ * - Mobile bottom sheet menu
+ * - Gradient avatar for profile
+ */
 
 interface MinimalHeaderProps {
   onOpenProfile?: () => void;
@@ -31,6 +62,8 @@ export default function MinimalHeader({
   const [mounted, setMounted] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [isWaitlistOpen, setIsWaitlistOpen] = useState(false);
+  const prefersReducedMotion = useReducedMotion();
 
   useEffect(() => {
     setMounted(true);
@@ -55,91 +88,101 @@ export default function MinimalHeader({
   return (
     <>
       <motion.header
-        initial={{ y: -20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.3, ease: "easeOut" }}
-        className={`
-          fixed top-0 left-0 right-0 z-50
-          h-14 md:h-14
-          glass
-          transition-shadow duration-base
-          ${isScrolled ? "shadow-md" : ""}
-        `}
+        initial={prefersReducedMotion ? { opacity: 0 } : { y: -20, opacity: 0 }}
+        animate={prefersReducedMotion ? { opacity: 1 } : { y: 0, opacity: 1 }}
+        transition={{ duration: prefersReducedMotion ? 0 : 0.3, ease: [0.25, 0.1, 0.25, 1] as const }}
+        className={cn(
+          "fixed top-0 left-0 right-0 z-50",
+          "h-12",
+          // Glass morphism
+          "bg-background/40 backdrop-blur-md",
+          "border-b border-border/40",
+          // Scroll shadow transition
+          "transition-all duration-300",
+          isScrolled && "bg-background/80 shadow-sm"
+        )}
       >
-        <div className="h-full max-w-7xl mx-auto px-4 flex items-center justify-between">
-          {/* Logo */}
-          <motion.div 
-            className="flex items-center gap-2.5"
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <div className="relative h-9 w-9 rounded-xl overflow-hidden ring-1 ring-border/30 bg-white flex items-center justify-center">
-              <Image 
-                src="/assets/WhatsApp Image 2025-08-05 at 13.57.52_050c3907.jpg" 
-                alt="DocketDive" 
-                width={36}
-                height={36}
-                className="object-contain"
-                priority
-              />
-            </div>
-            <div className="hidden sm:block">
-              <h1 className="text-lg font-semibold text-gradient">
-                DocketDive
-              </h1>
-              <p className="text-[10px] text-muted-foreground flex items-center gap-1 -mt-0.5">
-                <Scale className="h-2.5 w-2.5" />
-                Legal AI
-              </p>
-            </div>
-          </motion.div>
+        <div className="h-full max-w-full mx-auto px-6 flex items-center justify-between">
+          {/* Brand Info */}
+          <div className="flex items-center gap-3">
+             <Link href="/" className="hidden sm:flex items-center gap-2 hover:opacity-70 transition-opacity">
+                <span className="text-[11px] font-bold text-muted-foreground/40 uppercase tracking-[0.2em]">
+                  DocketDive
+                </span>
+                <span className="h-2.5 w-px bg-border/40 mx-1" />
+                <span className="text-[10px] font-medium text-muted-foreground/60 tracking-wider">
+                  South Africa
+                </span>
+             </Link>
+          </div>
 
           {/* Desktop Actions */}
           <div className="hidden md:flex items-center gap-1">
             <ToolsMenu />
             <LanguageSelector />
             
-            <div className="w-px h-5 bg-border mx-1" />
+            <div className="w-px h-5 bg-border/50 mx-1" />
             
-            {/* Theme Toggle */}
+            {/* Theme Toggle with premium animation */}
             <Button
               variant="ghost"
               size="icon"
               onClick={toggleTheme}
-              className="h-9 w-9 rounded-lg focus-ring"
-              aria-label="Toggle theme"
+              className={cn(
+                "h-9 w-9 rounded-lg",
+                "hover:bg-muted/80",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              )}
+              aria-label={mounted ? `Switch to ${theme === 'dark' ? 'light' : 'dark'} mode` : "Switch theme"}
               data-tour="theme-toggle"
             >
-              {mounted && (
-                <motion.div
-                  key={theme}
-                  initial={{ scale: 0.5, opacity: 0, rotate: -90 }}
-                  animate={{ scale: 1, opacity: 1, rotate: 0 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  {theme === "dark" ? (
-                    <Moon className="h-4 w-4" />
-                  ) : (
-                    <Sun className="h-4 w-4" />
-                  )}
-                </motion.div>
-              )}
+              <AnimatePresence mode="wait" initial={false}>
+                {mounted && (
+                  <motion.div
+                    key={theme}
+                    initial={prefersReducedMotion ? { opacity: 0 } : { scale: 0.5, opacity: 0, rotate: -90 }}
+                    animate={prefersReducedMotion ? { opacity: 1 } : { scale: 1, opacity: 1, rotate: 0 }}
+                    exit={prefersReducedMotion ? { opacity: 0 } : { scale: 0.5, opacity: 0, rotate: 90 }}
+                    transition={{ duration: prefersReducedMotion ? 0 : 0.2 }}
+                  >
+                    {theme === "dark" ? (
+                      <Moon className="h-4 w-4" />
+                    ) : (
+                      <Sun className="h-4 w-4" />
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </Button>
+
+            <Button
+              onClick={() => setIsWaitlistOpen(true)}
+              className="ml-2 bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
+              size="sm"
+            >
+              <SparklesIcon className="w-3.5 h-3.5 mr-2" />
+              Join Waitlist
             </Button>
 
 
-
-            {/* Profile */}
+            {/* Profile with gradient avatar removed as per user request */}
+            {/* 
             <Button
               variant="ghost"
               size="icon"
               onClick={onOpenProfile}
-              className="h-9 w-9 rounded-lg focus-ring"
+              className={cn(
+                "h-9 w-9 rounded-lg",
+                "hover:bg-muted/80",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              )}
               aria-label={loggedIn ? "Open profile" : "Sign in"}
             >
-              <div className="h-7 w-7 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+              <div className="h-7 w-7 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-sm ring-1 ring-white/20">
                 <User className="h-3.5 w-3.5 text-primary-foreground" />
               </div>
             </Button>
+            */}
           </div>
 
           {/* Mobile Menu Button */}
@@ -149,8 +192,8 @@ export default function MinimalHeader({
               variant="ghost"
               size="icon"
               onClick={toggleTheme}
-              className="h-10 w-10 min-h-touch min-w-touch rounded-lg focus-ring"
-              aria-label="Toggle theme"
+              className="h-10 w-10 min-h-[44px] min-w-[44px] rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              aria-label={mounted ? `Switch to ${theme === 'dark' ? 'light' : 'dark'} mode` : "Switch theme"}
             >
               {mounted && (theme === "dark" ? (
                 <Moon className="h-5 w-5" />
@@ -164,7 +207,7 @@ export default function MinimalHeader({
               variant="ghost"
               size="icon"
               onClick={() => setIsMenuOpen(true)}
-              className="h-10 w-10 min-h-touch min-w-touch rounded-lg focus-ring"
+              className="h-10 w-10 min-h-[44px] min-w-[44px] rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               aria-label="Open menu"
               aria-expanded={isMenuOpen}
             >
@@ -175,7 +218,7 @@ export default function MinimalHeader({
       </motion.header>
 
       {/* Spacer for fixed header */}
-      <div className="h-14 md:h-14" />
+      <div className="h-14" />
 
       {/* Mobile Bottom Sheet Menu */}
       <BottomSheet isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)}>
@@ -186,7 +229,7 @@ export default function MinimalHeader({
               variant="ghost"
               size="icon"
               onClick={() => setIsMenuOpen(false)}
-              className="h-10 w-10 min-h-touch min-w-touch rounded-lg"
+              className="h-10 w-10 min-h-[44px] min-w-[44px] rounded-lg"
               aria-label="Close menu"
             >
               <X className="h-5 w-5" />
@@ -200,14 +243,14 @@ export default function MinimalHeader({
               return (
                 <motion.button
                   key={item.label}
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.05 }}
+                  initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, x: -10 }}
+                  animate={prefersReducedMotion ? { opacity: 1 } : { opacity: 1, x: 0 }}
+                  transition={{ delay: prefersReducedMotion ? 0 : index * 0.05 }}
                   onClick={() => {
                     item.onClick?.();
                     setIsMenuOpen(false);
                   }}
-                  className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-muted transition-colors min-h-touch focus-ring"
+                  className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-muted transition-colors min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <Icon className="h-5 w-5 text-muted-foreground" />
                   <span className="font-medium">{item.label}</span>
@@ -226,6 +269,11 @@ export default function MinimalHeader({
           </div>
         </div>
       </BottomSheet>
+
+      <WaitlistModal 
+        isOpen={isWaitlistOpen} 
+        onClose={() => setIsWaitlistOpen(false)} 
+      />
     </>
   );
 }

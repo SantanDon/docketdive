@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState, useEffect, useRef } from "react";
+import { motion, AnimatePresence, useSpring, useTransform } from "framer-motion";
 import {
   FileSearch,
   CheckCircle,
@@ -20,6 +20,11 @@ import DocumentDropzone from "@/components/DocumentDropzone";
 import DocumentChat from "@/components/DocumentChat";
 import { Spotlight } from "@/components/ui/spotlight";
 import { getToolTheme, getThemeClasses } from "@/components/ui/tool-themes";
+import { 
+  ToolLoadingState, 
+  DocumentProcessingState,
+  ResultsLoadingState 
+} from "@/components/LoadingStates";
 
 // Types
 interface ClauseResult {
@@ -52,26 +57,125 @@ interface AuditReport {
   generatedAt: string;
 }
 
-// Score Circle Component
-function ScoreCircle({ score }: { score: number }) {
+// Enhanced Score Circle Component with animated counter and gradient
+function EnhancedScoreCircle({ score }: { score: number }) {
   const getConfig = () => {
-    if (score >= 80) return { text: "text-green-600 dark:text-green-400", bg: "bg-green-500/10", border: "border-green-500/20", glow: "shadow-green-500/20" };
-    if (score >= 60) return { text: "text-amber-600 dark:text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/20", glow: "shadow-amber-500/20" };
-    return { text: "text-red-600 dark:text-red-400", bg: "bg-red-500/10", border: "border-red-500/20", glow: "shadow-red-500/20" };
+    if (score >= 80) return { 
+      text: "text-green-600 dark:text-green-400", 
+      bg: "bg-green-500/10", 
+      border: "border-green-500/20", 
+      glow: "shadow-green-500/20",
+      gradient: "from-green-500 to-emerald-500",
+    };
+    if (score >= 60) return { 
+      text: "text-amber-600 dark:text-amber-400", 
+      bg: "bg-amber-500/10", 
+      border: "border-amber-500/20", 
+      glow: "shadow-amber-500/20",
+      gradient: "from-amber-500 to-orange-500",
+    };
+    return { 
+      text: "text-red-600 dark:text-red-400", 
+      bg: "bg-red-500/10", 
+      border: "border-red-500/20", 
+      glow: "shadow-red-500/20",
+      gradient: "from-red-500 to-rose-500",
+    };
   };
+  
   const config = getConfig();
+  
+  // Animated counter
+  const springScore = useSpring(0, {
+    damping: 30,
+    stiffness: 100,
+    mass: 0.5,
+  });
+  
+  const displayScore = useTransform(springScore, (value) => Math.round(value));
+  
+  useEffect(() => {
+    springScore.set(score);
+  }, [score, springScore]);
+  
+  // Circumference for ring
+  const circumference = 2 * Math.PI * 45;
+  const strokeDashoffset = useTransform(springScore, (value) => {
+    return circumference - (value / 100) * circumference;
+  });
 
   return (
     <motion.div 
       initial={{ scale: 0.9, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
-      className={cn(
-        "w-32 h-32 rounded-4xl flex flex-col items-center justify-center border-2 shadow-2xl backdrop-blur-sm",
-        config.bg, config.border, config.glow
-      )}
+      transition={{ type: "spring", stiffness: 200, damping: 20 }}
+      className={cn("relative")}
     >
-      <span className={cn("text-4xl font-bold tracking-tight", config.text)}>{score}</span>
-      <span className={cn("text-xs font-semibold uppercase tracking-widest mt-1 opacity-70", config.text)}>Score</span>
+      {/* Glow effect */}
+      <motion.div
+        className={cn("absolute inset-0 rounded-full blur-xl opacity-50", config.bg)}
+        animate={{ opacity: [0.3, 0.6, 0.3] }}
+        transition={{ duration: 2, repeat: Infinity }}
+      />
+      
+      {/* Main circle */}
+      <div className={cn(
+        "relative w-36 h-36 rounded-full flex items-center justify-center",
+        "border-4 border-transparent bg-gradient-to-br from-white to-muted dark:from-slate-800 dark:to-slate-900",
+        "shadow-2xl",
+        config.glow
+      )}>
+        {/* Gradient ring */}
+        <svg className="absolute inset-0 w-full h-full -rotate-90 transform" viewBox="0 0 144 144">
+          <circle
+            cx="72"
+            cy="72"
+            r="45"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="4"
+            className="text-muted"
+            strokeDasharray={circumference}
+            strokeDashoffset={circumference}
+          />
+          <motion.circle
+            cx="72"
+            cy="72"
+            r="45"
+            fill="none"
+            stroke={`url(#scoreGradient-${score})`}
+            strokeWidth="4"
+            strokeLinecap="round"
+            strokeDasharray={circumference}
+            strokeDashoffset={strokeDashoffset}
+            style={{ willChange: "stroke-dashoffset" }}
+          />
+          <defs>
+            <linearGradient
+              id={`scoreGradient-${score}`}
+              x1="0%"
+              y1="0%"
+              x2="100%"
+              y2="100%"
+            >
+              <stop offset="0%" stopColor="hsl(var(--primary))" />
+              <stop offset="100%" stopColor="hsl(var(--accent))" />
+            </linearGradient>
+          </defs>
+        </svg>
+        
+        {/* Content */}
+        <div className="relative z-10 text-center">
+          <motion.span 
+            className={cn("text-4xl font-black tracking-tight", config.text)}
+          >
+            {displayScore}
+          </motion.span>
+          <span className={cn("text-[9px] font-bold uppercase tracking-[0.2em] mt-1 opacity-70 block", config.text)}>
+            Score
+          </span>
+        </div>
+      </div>
     </motion.div>
   );
 }
@@ -297,7 +401,52 @@ export default function ClauseAuditor({ documentContent, onClose }: ClauseAudito
       <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-10">
         {/* Left Column: Configuration/Summary Island */}
         <div className="lg:col-span-12">
-          {!report ? (
+          {/* Loading State */}
+          {loading && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="w-full"
+            >
+              <ToolLoadingState
+                toolName="Analyzing Contract"
+                message="Auditing clauses and identifying risks..."
+                estimatedTime="~20 seconds"
+                progress={35}
+              />
+            </motion.div>
+          )}
+          
+          {/* Error State */}
+          {error && (
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="p-5 rounded-2xl bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20 flex items-center gap-3 font-medium shadow-lg shadow-red-500/5"
+            >
+              <AlertCircle size={20} className="shrink-0" />
+              <p className="text-sm">{error}</p>
+            </motion.div>
+          )}
+          
+          {/* Loading State */}
+          {loading && !report && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="w-full"
+            >
+              <ToolLoadingState
+                toolName="Analyzing Contract"
+                message="Auditing clauses and identifying risks..."
+                estimatedTime="~20 seconds"
+                progress={35}
+              />
+            </motion.div>
+          )}
+          
+          {/* Initial State */}
+          {!report && !loading && (
             <motion.div 
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -390,7 +539,10 @@ export default function ClauseAuditor({ documentContent, onClose }: ClauseAudito
               </div>
             </div>
             </motion.div>
-          ) : (
+          )}
+          
+          {/* Results State */}
+          {report && (
             <div className="flex flex-col gap-10">
               {/* Results Island */}
               <motion.div 
@@ -409,41 +561,41 @@ export default function ClauseAuditor({ documentContent, onClose }: ClauseAudito
                       <div className="flex flex-wrap items-center justify-center md:justify-start gap-4">
                         <div className="px-4 py-2 rounded-2xl bg-background/50 border border-border/50 shadow-sm">
                           <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">Classification</p>
-                          <p className="font-bold text-foreground leading-none">{contractTypeNames[report.contractType] || report.contractType}</p>
+                          <p className="font-bold text-foreground leading-none">{contractTypeNames[report?.contractType] || report?.contractType}</p>
                         </div>
                         <div className="px-4 py-2 rounded-2xl bg-background/50 border border-border/50 shadow-sm">
                           <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">Confidence</p>
-                          <p className="font-bold text-foreground leading-none">{Math.round(report.typeConfidence * 100)}%</p>
+                          <p className="font-bold text-foreground leading-none">{Math.round((report?.typeConfidence ?? 0) * 100)}%</p>
                         </div>
                       </div>
                     </div>
-                    <ScoreCircle score={report.overallScore} />
+                    <EnhancedScoreCircle score={report?.overallScore ?? 0} />
                   </div>
 
                   {/* Summary Tiles */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                     <div className="p-6 rounded-3xl bg-red-500/5 border border-red-500/20 shadow-lg shadow-red-500/5 text-center transition-all hover:scale-[1.02]">
-                      <p className="text-4xl font-black text-red-600 dark:text-red-400 mb-1 leading-none">{report.summary.critical.missing}</p>
+                      <p className="text-4xl font-black text-red-600 dark:text-red-400 mb-1 leading-none">{report?.summary?.critical?.missing ?? 0}</p>
                       <p className="text-[10px] font-bold text-red-600 dark:text-red-400 uppercase tracking-widest">Critical Missing</p>
                     </div>
                     <div className="p-6 rounded-3xl bg-amber-500/5 border border-amber-500/20 shadow-lg shadow-amber-500/5 text-center transition-all hover:scale-[1.02]">
-                      <p className="text-4xl font-black text-amber-600 dark:text-amber-400 mb-1 leading-none">{report.summary.recommended.missing}</p>
+                      <p className="text-4xl font-black text-amber-600 dark:text-amber-400 mb-1 leading-none">{report?.summary?.recommended?.missing ?? 0}</p>
                       <p className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest">Rec. Missing</p>
                     </div>
                     <div className="p-6 rounded-3xl bg-green-500/5 border border-green-500/20 shadow-lg shadow-green-500/5 text-center transition-all hover:scale-[1.02]">
                       <p className="text-4xl font-black text-green-600 dark:text-green-400 mb-1 leading-none">
-                        {report.summary.critical.present + report.summary.recommended.present}
+                        {((report?.summary?.critical?.present ?? 0) + (report?.summary?.recommended?.present ?? 0))}
                       </p>
                       <p className="text-[10px] font-bold text-green-600 dark:text-green-400 uppercase tracking-widest">Clauses Found</p>
                     </div>
                     <div className="p-6 rounded-3xl bg-purple-500/5 border border-purple-500/20 shadow-lg shadow-purple-500/5 text-center transition-all hover:scale-[1.02]">
-                      <p className="text-4xl font-black text-purple-600 dark:text-purple-400 mb-1 leading-none">{report.unusualClausesCount || 0}</p>
+                      <p className="text-4xl font-black text-purple-600 dark:text-purple-400 mb-1 leading-none">{report?.unusualClausesCount ?? 0}</p>
                       <p className="text-[10px] font-bold text-purple-600 dark:text-purple-400 uppercase tracking-widest">Unusual Usage</p>
                     </div>
                   </div>
 
                   {/* Recommendation Island */}
-                  {report.recommendations.length > 0 && (
+                  {report?.recommendations && report.recommendations.length > 0 && (
                     <motion.div 
                       initial={{ opacity: 0, scale: 0.98 }}
                       animate={{ opacity: 1, scale: 1 }}
@@ -456,7 +608,7 @@ export default function ClauseAuditor({ documentContent, onClose }: ClauseAudito
                         <h3 className="text-lg font-bold tracking-tight">Audit Recommendations</h3>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {report.recommendations.map((rec, idx) => (
+                        {report?.recommendations?.map((rec, idx) => (
                           <div key={idx} className="p-4 rounded-2xl bg-background/40 border border-border/40 text-sm text-foreground/80 leading-relaxed font-medium flex items-start gap-3">
                             <span className="h-2 w-2 rounded-full bg-primary mt-1.5 shrink-0" />
                             {rec}
@@ -472,7 +624,7 @@ export default function ClauseAuditor({ documentContent, onClose }: ClauseAudito
                       <div className="space-y-1">
                         <h3 className="text-xl font-extrabold tracking-tight">Detailed Clause Analysis</h3>
                         <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
-                          Evaluating {report.clauses.length} core clauses
+                          Evaluating {report?.clauses?.length ?? 0} core clauses
                         </p>
                       </div>
                       <div className="flex items-center gap-2">

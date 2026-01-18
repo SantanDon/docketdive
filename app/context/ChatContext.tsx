@@ -181,9 +181,12 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
 
     // Check for glossary intent
     if (rawMessage.toLowerCase().includes("legal tools") || rawMessage.toLowerCase().includes("show tools")) {
+      console.log('Redirecting to tools page');
       router.push("/tools");
       return;
     }
+
+    console.log('Sending message to API...', { provider, messageLength: rawMessage.length });
 
     // Create new AbortController
     abortControllerRef.current = new AbortController();
@@ -227,33 +230,41 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
          controller.abort();
        }, 180000);
 
-       let res: Response;
-       try {
-         res = await fetch("/api/chat", {
-           method: "POST",
-           headers: { "Content-Type": "application/json" },
-           body: JSON.stringify({ 
-             message: enhancedMessage, 
-             provider,
-             // Use the optimistic-updated messages so the API sees the latest user prompt.
-             conversationHistory: newMessages,
-             conversationId,
-             userId: anonymousUserId || getOrCreateAnonymousUserId(),
-             language,
-             legalAidMode
-           }),
-           signal: controller.signal,
-         });
+        let res: Response;
+        try {
+          console.log('Fetching /api/chat...');
+          // Get privacy mode from localStorage
+          const privacyMode = localStorage.getItem('docketdive_privacy_mode') === 'true';
+          res = await fetch("/api/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+              message: enhancedMessage, 
+              provider,
+              // Use the optimistic-updated messages so the API sees the latest user prompt.
+              conversationHistory: newMessages,
+              conversationId,
+              userId: anonymousUserId || getOrCreateAnonymousUserId(),
+              language,
+              legalAidMode,
+              privacyMode  // Pass client-side privacy preference
+            }),
+            signal: controller.signal,
+          });
        } finally {
          clearTimeout(timeoutId);
        }
 
+       console.log('Response received', { status: res.status, ok: res.ok });
+
        if (!res.ok) {
          const errorText = await res.text();
+         console.error('API Error Response:', errorText);
          throw new Error(`Server error ${res.status}: ${errorText || res.statusText}`);
        }
        if (!res.body) throw new Error("No response body from server");
 
+       console.log('Starting stream read...');
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let done = false;
@@ -298,6 +309,7 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
 
         const chunk = decoder.decode(value || new Uint8Array(), { stream: !done });
         if (chunk.length > 0) {
+          if (!hasReceivedContent) console.log('First chunk received', chunk.substring(0, 50));
           lastChunkTime = Date.now();
           hasReceivedContent = true;
         }

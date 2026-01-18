@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Scale, Sparkles } from "lucide-react";
+import { Scale, Sparkles, Search, FileText, PenTool } from "lucide-react";
 import { motion } from "framer-motion";
+import WaitlistForm from "./WaitlistForm";
 
 interface WelcomeScreenProps {
   username: string;
@@ -24,7 +25,7 @@ const itemVariants = {
   visible: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.5, ease: "easeOut" },
+    transition: { duration: 0.5 },
   },
 };
 
@@ -84,9 +85,9 @@ export default function WelcomeScreen({ username }: WelcomeScreenProps) {
         className="w-full max-w-2xl grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-3"
       >
         {[
-          { icon: "📚", label: "Research", desc: "Case law & precedents" },
-          { icon: "📋", label: "Analyze", desc: "Documents & contracts" },
-          { icon: "✍️", label: "Draft", desc: "Legal documents" },
+          { icon: Search, label: "Research", desc: "Case law & precedents" },
+          { icon: FileText, label: "Analyze", desc: "Documents & contracts" },
+          { icon: PenTool, label: "Draft", desc: "Legal documents" },
         ].map((capability, idx) => (
           <motion.div
             key={idx}
@@ -95,7 +96,7 @@ export default function WelcomeScreen({ username }: WelcomeScreenProps) {
             className="group p-4 rounded-lg border border-slate-200/50 dark:border-slate-700/50 bg-gradient-to-br from-slate-50/50 to-transparent dark:from-slate-900/30 dark:to-transparent hover:border-legal-blue-300 dark:hover:border-legal-blue-700 transition-all duration-200 cursor-default focus-within:ring-2 focus-within:ring-legal-blue-500 focus-within:ring-offset-2 dark:focus-within:ring-offset-slate-900"
           >
             <div className="text-2xl mb-2 group-hover:scale-110 transition-transform duration-200">
-              {capability.icon}
+              <capability.icon className="h-8 w-8" />
             </div>
             <div className="text-left">
               <h3 className="font-semibold text-slate-900 dark:text-slate-50 text-sm">
@@ -111,11 +112,20 @@ export default function WelcomeScreen({ username }: WelcomeScreenProps) {
 
       {/* CTA suggestion */}
       <motion.div variants={itemVariants} className="mt-10 sm:mt-14 text-center">
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-legal-blue-50 dark:bg-legal-blue-900/20 border border-legal-blue-200 dark:border-legal-blue-800/50">
+        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-legal-blue-50 dark:bg-legal-blue-900/20 border border-legal-blue-200 dark:border-legal-blue-800/50 mb-8">
           <Sparkles className="w-4 h-4 text-legal-blue-600 dark:text-legal-blue-400" />
           <p className="text-xs sm:text-sm font-medium text-legal-blue-700 dark:text-legal-blue-300">
             Try asking me to analyze a contract or research a legal topic
           </p>
+        </div>
+
+        {/* Waitlist Section */}
+        <div className="mt-8 pt-8 border-t border-slate-200/50 dark:border-slate-700/50 w-full max-w-lg mx-auto">
+          <h3 className="text-lg font-semibold mb-2">Want full access?</h3>
+          <p className="text-sm text-muted-foreground mb-6">
+            We're currently in closed alpha. Join the waitlist to get notified when we open more spots.
+          </p>
+          <WaitlistForm className="max-w-md mx-auto" />
         </div>
       </motion.div>
     </motion.section>

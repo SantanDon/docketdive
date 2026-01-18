@@ -52,20 +52,20 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, isMobile }: Sideb
       {(!isMobile || sidebarOpen) && (
         <>
           <aside
-            className={`w-64 bg-card border-r flex flex-col z-50 transition-all duration-300 ${isMobile ? "fixed inset-0 h-full" : "relative"
+            className={`w-64 bg-background border-r flex flex-col z-50 transition-all duration-300 ${isMobile ? "fixed inset-0 h-full" : "relative"
               }`}
           >
-            <div className="p-4 border-b">
+            <div className="p-5 flex flex-col gap-6">
+              {/* Logo / Header */}
               <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <div className="bg-gradient-to-br from-legal-blue-600 to-justice-600 p-2 rounded-lg">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+                    <svg className="w-5 h-5 text-primary-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                       <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                     </svg>
                   </div>
                   <div>
-                    <h1 className="text-xl font-bold">DocketDive</h1>
-                    <p className="text-xs text-muted-foreground">AI Legal Assistant</p>
+                    <h1 className="text-sm font-semibold tracking-tight">DocketDive</h1>
                   </div>
                 </div>
                 {isMobile && (
@@ -73,95 +73,75 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, isMobile }: Sideb
                     variant="ghost"
                     size="icon"
                     onClick={() => setSidebarOpen(false)}
+                    className="h-8 w-8"
                   >
                     <X className="h-4 w-4" />
                   </Button>
                 )}
               </div>
+
+              {/* Utility Nav */}
+              <nav className="flex flex-col gap-1">
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start gap-3 h-9 text-sm font-medium hover:bg-muted"
+                  onClick={() => {
+                    newChat();
+                    if (isMobile) setSidebarOpen(false);
+                  }}
+                >
+                  <Plus className="h-4 w-4" />
+                  New Chat
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start gap-3 h-9 text-sm font-medium hover:bg-muted"
+                >
+                  <MessageSquare className="h-4 w-4" />
+                  Overview
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start gap-3 h-9 text-sm font-medium hover:bg-muted"
+                >
+                  <GraduationCap className="h-4 w-4" />
+                  Data Room
+                </Button>
+              </nav>
             </div>
 
-            <div className="p-4 flex flex-col gap-3">
-              <Button
-                className="w-full justify-start"
-                onClick={() => {
-                  newChat();
-                  if (isMobile) setSidebarOpen(false);
-                }}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                New Chat
-              </Button>
-
-              {mode === "student" && (
-                <div className="p-3 rounded-lg bg-secondary/50 border flex items-center justify-between">
-                  <div className="flex items-center">
-                    <GraduationCap className="h-4 w-4 mr-2 text-amber-600" />
-                    <div>
-                      <div className="text-sm font-medium">Student Mode</div>
-                      <div className="text-xs text-muted-foreground">{eliLevel}</div>
-                    </div>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={toggleStudentMode}
-                    className="h-auto p-1 text-xs"
-                  >
-                    Exit
-                  </Button>
-                </div>
-              )}
-            </div>
-
-            <div className="flex-1 overflow-auto p-2">
-              <div className="flex items-center justify-between px-2 mb-2">
-                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Recent Chats</h3>
-                {conversations.length > 0 && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleClearData}
-                    className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
-                    title="Clear all history"
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
-                )}
+            {/* Session History Section */}
+            <div className="flex-1 overflow-auto px-3 py-2">
+              <div className="px-2 mb-2">
+                <h3 className="text-[11px] font-semibold text-muted-foreground/60 uppercase tracking-wider">Recent Sessions</h3>
               </div>
 
               {conversations.length === 0 ? (
-                <div className="p-8 text-center flex flex-col items-center justify-center h-40">
-                  <div className="bg-muted rounded-full p-3 mb-3">
-                    <MessageSquare className="h-5 w-5 text-muted-foreground" />
-                  </div>
-                  <p className="text-sm font-medium text-foreground">No chats yet</p>
-                  <p className="text-xs text-muted-foreground mt-1">Start a new conversation to get legal assistance</p>
+                <div className="px-2 py-4 text-xs text-muted-foreground italic">
+                  No active sessions
                 </div>
               ) : (
-                <div className="space-y-1">
-                  {conversations.slice(0, 20).map((conv) => (
+                <div className="space-y-0.5">
+                  {conversations.slice(0, 15).map((conv) => (
                     <div
                       key={conv.id}
-                      className="group relative flex items-center gap-2 rounded-lg px-2 py-2 hover:bg-accent cursor-pointer transition-colors"
+                      className="group relative flex items-center gap-3 rounded-md px-2 py-2 hover:bg-muted cursor-pointer transition-colors"
                       onClick={() => {
                         loadConversation(conv.id);
                         if (isMobile) setSidebarOpen(false);
                       }}
                     >
-                      <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                      <MessageSquare className="h-3.5 w-3.5 text-muted-foreground/70" />
                       <div className="flex-1 min-w-0">
-                        <div className="font-medium text-sm truncate text-foreground">{conv.title}</div>
-                        <div className="text-xs text-muted-foreground truncate">
-                          {new Date(conv.date).toLocaleDateString()}
-                        </div>
+                        <div className="text-xs font-medium truncate text-foreground/80">{conv.title}</div>
                       </div>
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                        className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
                         onClick={(e) => {
                           e.stopPropagation();
-                          if (confirm("Delete this conversation?")) {
+                          if (confirm("Delete session?")) {
                             deleteConversation(conv.id);
                           }
                         }}
@@ -174,12 +154,20 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, isMobile }: Sideb
               )}
             </div>
 
-            <div className="p-4 border-t">
-              <div className="flex items-center justify-between">
+            {/* Bottom Utilities */}
+            <div className="p-4 border-t border-border/50 flex flex-col gap-1">
+               <Button
+                  variant="ghost"
+                  className="w-full justify-start gap-3 h-9 text-xs font-medium text-muted-foreground hover:text-foreground"
+                >
+                  <MessageSquare className="h-3.5 w-3.5" />
+                  Get Help
+                </Button>
+              <div className="flex items-center justify-between px-2 pt-2">
                 <ModeToggle />
-                <div className="text-xs text-muted-foreground">
-                  South African Law
-                </div>
+                <span className="text-[10px] font-semibold text-muted-foreground/50 tracking-widest uppercase">
+                  V 1.0.4
+                </span>
               </div>
             </div>
           </aside>

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FileText, Loader2, Check, X, Zap, Database, Sparkles, FileSearch } from 'lucide-react';
+import { FileText, Loader2, Check, X, Zap, Database, Sparkles, FileSearch, File, HardDrive, Type } from 'lucide-react';
 import DocumentDropzone from '@/components/DocumentDropzone';
 import { cn } from '@/lib/utils';
 
@@ -90,12 +90,20 @@ export default function DocumentUpload() {
     setError(null);
 
     try {
+      // Get or generate userId from localStorage
+      let userId = localStorage.getItem('docketdive_user_id');
+      if (!userId) {
+        userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        localStorage.setItem('docketdive_user_id', userId);
+      }
+
       const response = await fetch('/api/documents/add', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           text: uploadedFile.text,
           fileName: uploadedFile.metadata.fileName,
+          userId: userId, // Pass userId for privacy isolation
           metadata: {
             category: 'Legal Document',
             fileType: uploadedFile.metadata.fileType,
@@ -220,20 +228,20 @@ export default function DocumentUpload() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold text-lg mb-2 truncate text-foreground">{uploadedFile.metadata.fileName}</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <span>📄</span> {uploadedFile.metadata.pageCount} pages
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <span>📝</span> {uploadedFile.metadata.wordCount.toLocaleString()} words
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <span>💾</span> {formatBytes(uploadedFile.metadata.fileSize)}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <span>🔤</span> {uploadedFile.metadata.charCount.toLocaleString()} chars
-                    </div>
-                  </div>
+                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm text-muted-foreground">
+                     <div className="flex items-center gap-1">
+                       <File className="h-4 w-4" /> {uploadedFile.metadata.pageCount} pages
+                     </div>
+                     <div className="flex items-center gap-1">
+                       <FileText className="h-4 w-4" /> {uploadedFile.metadata.wordCount.toLocaleString()} words
+                     </div>
+                     <div className="flex items-center gap-1">
+                       <HardDrive className="h-4 w-4" /> {formatBytes(uploadedFile.metadata.fileSize)}
+                     </div>
+                     <div className="flex items-center gap-1">
+                       <Type className="h-4 w-4" /> {uploadedFile.metadata.charCount.toLocaleString()} chars
+                     </div>
+                   </div>
                   {uploadedFile.metadata.isScanned && (
                     <div className="mt-2 flex items-center gap-2 text-xs">
                       <Sparkles size={12} className="text-primary" />

@@ -38,7 +38,7 @@ export default function MessageList({
       aria-label="Chat messages"
     >
       {/* Centered container with max-width */}
-      <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
+      <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
         {messages.map((message) => {
           // Skip empty assistant messages during loading
           if (message.role === "assistant" && !message.content && isLoading) {

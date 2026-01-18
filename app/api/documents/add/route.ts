@@ -31,7 +31,7 @@ function chunkText(text: string): string[] {
 
 export async function POST(request: NextRequest) {
   try {
-    const { text, fileName, metadata } = await request.json();
+    const { text, fileName, metadata, userId } = await request.json();
 
     if (!text) {
       return NextResponse.json(
@@ -46,6 +46,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Generate anonymous userId if not provided for privacy isolation
+    const effectiveUserId = userId || `anon_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
     const chunks = chunkText(text);
     if (chunks.length === 0) {
@@ -70,6 +73,8 @@ export async function POST(request: NextRequest) {
             source: 'uploaded_document',
             fileName: fileName || 'Unknown',
             uploadDate: new Date().toISOString(),
+            userId: effectiveUserId, // Critical: isolate documents by user
+            isPrivate: true, // Mark as private document
             chunkIndex: i,
             totalChunks: chunks.length,
             title: fileName || 'Uploaded Document',
@@ -102,6 +107,7 @@ export async function POST(request: NextRequest) {
       totalChunks: chunks.length,
       errors: errors.length > 0 ? errors.slice(0, 3) : undefined,
       message: `Successfully added ${fileName} to knowledge base`,
+      userId: effectiveUserId, // Return the userId for client reference
     });
   } catch (error: any) {
     console.error('Knowledge base addition error:', error);

@@ -45,7 +45,7 @@ export default function Header({ sidebarOpen, setSidebarOpen, isMobile }: Header
         )}
 
         <div className="font-bold text-lg flex items-center tracking-tight">
-          <div className="bg-gradient-to-br from-blue-600 to-indigo-600 text-white p-2 rounded-xl mr-3 shadow-lg shadow-blue-500/20">
+          <div className="bg-gradient-to-br from-primary to-primary/80 text-primary-foreground p-2 rounded-xl mr-3 shadow-lg">
             <Scale className="h-5 w-5" />
           </div>
           <div className="flex flex-col">

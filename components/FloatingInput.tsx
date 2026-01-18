@@ -3,6 +3,7 @@
 import { useRef, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Send, Square, Sparkles, Upload } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useChat } from "@/app/context/ChatContext";
 import { cn } from "@/lib/utils";
 
@@ -56,121 +57,116 @@ export default function FloatingInput({
   };
 
   return (
-    <div className="sticky bottom-0 z-40 pb-safe-bottom">
-      {/* Gradient fade effect */}
-      <div className="absolute inset-x-0 bottom-full h-8 bg-gradient-to-t from-background to-transparent pointer-events-none" />
+    <div className="sticky bottom-0 z-40 pb-8 pt-4">
+      {/* Subtle fade shadow for main content scroll underneath */}
+      <div className="absolute inset-x-0 bottom-full h-12 bg-gradient-to-t from-background to-transparent pointer-events-none" />
       
-      <div className="bg-background/80 backdrop-blur-md border-t border-border/50 px-4 py-3">
-        <div className="max-w-3xl mx-auto">
-          {/* Student Mode Indicator */}
-          {mode === "student" && (
-            <motion.div
-              initial={{ opacity: 0, y: 5 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="flex justify-center mb-2"
-            >
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
-                Student Mode ({eliLevel})
-              </span>
-            </motion.div>
-          )}
+      <div className="px-4 max-w-4xl mx-auto">
+        <div className="relative group">
+           {/* Student Mode / Model Indicator - Subtly positioned above */}
+           <div className="absolute -top-7 left-4 flex items-center gap-3">
+              {mode === "student" && (
+                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-primary text-primary-foreground tracking-wide uppercase">
+                  {eliLevel} Mode
+                </span>
+              )}
+           </div>
 
-          {/* Input Container */}
+          {/* Centered Pill Input Container */}
           <motion.div
-            animate={{
-              boxShadow: isFocused 
-                ? "0 0 0 2px hsl(var(--ring) / 0.2), var(--shadow-lg)" 
-                : "var(--shadow-md)"
-            }}
-            transition={{ duration: 0.15 }}
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
             className={cn(
-              "relative flex items-end gap-2",
-              "bg-card rounded-2xl border",
-              "transition-colors duration-fast",
-              isFocused ? "border-ring/50" : "border-border"
+              "relative flex flex-col gap-2 p-1.5 bg-card border rounded-2xl shadow-lg transition-all duration-300",
+              isFocused ? "border-foreground/20 ring-4 ring-foreground/5" : "border-border shadow-md"
             )}
           >
-            {/* Textarea */}
-            <textarea
-              ref={textareaRef}
-              value={inputMessage}
-              onChange={(e) => setInputMessage(e.target.value)}
-              onKeyDown={handleKeyDown}
-              onFocus={() => setIsFocused(true)}
-              onBlur={() => setIsFocused(false)}
-              placeholder={placeholder}
-              disabled={isLoading}
-              rows={1}
-              className={cn(
-                "flex-1 resize-none bg-transparent",
-                "px-4 py-3 text-base leading-6",
-                "placeholder:text-muted-foreground/60",
-                "focus:outline-none",
-                "disabled:opacity-50 disabled:cursor-not-allowed",
-                "min-h-[48px] max-h-[96px]" // 1-4 lines
-              )}
-              aria-label="Message input"
-            />
+            {/* Textarea Area */}
+            <div className="px-3 pt-2">
+              <textarea
+                ref={textareaRef}
+                value={inputMessage}
+                onChange={(e) => setInputMessage(e.target.value)}
+                onKeyDown={handleKeyDown}
+                onFocus={() => setIsFocused(true)}
+                onBlur={() => setIsFocused(false)}
+                placeholder={placeholder}
+                disabled={isLoading}
+                rows={1}
+                className={cn(
+                  "w-full resize-none bg-transparent",
+                  "text-[15px] leading-relaxed",
+                  "placeholder:text-muted-foreground/40",
+                  "focus:outline-none",
+                  "disabled:opacity-50",
+                  "min-h-[44px] max-h-[160px]"
+                )}
+                aria-label="Legal prompt input"
+              />
+            </div>
 
-            {/* Action Buttons */}
-            <div className="flex items-center gap-1 pr-2 pb-2">
-              {/* Upload Button */}
-              {onUpload && !isLoading && (
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={onUpload}
-                  className="p-1.5 text-muted-foreground hover:text-foreground transition-colors focus-ring"
-                  aria-label="Upload document"
+            {/* Bottom Action Bar within the pill */}
+            <div className="flex items-center justify-between px-2 pb-1.5 pt-1 border-t border-border/10">
+              <div className="flex items-center gap-1">
+                {onUpload && (
+                   <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={onUpload}
+                    className="h-8 w-8 rounded-lg text-muted-foreground/60 hover:text-foreground hover:bg-muted"
+                    disabled={isLoading}
+                  >
+                    <Upload className="h-4 w-4" />
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-2 text-[10px] font-bold text-muted-foreground/50 uppercase tracking-widest hover:text-foreground"
                 >
-                  <Upload className="h-5 w-5" />
-                </motion.button>
-              )}
+                  Prompts
+                </Button>
+              </div>
 
-              {isLoading ? (
-                <motion.button
-                  initial={{ scale: 0.8 }}
-                  animate={{ scale: 1 }}
-                  onClick={stopGeneration}
-                  className={cn(
-                    "h-10 w-10 min-h-touch min-w-touch rounded-xl",
-                    "flex items-center justify-center",
-                    "bg-destructive text-destructive-foreground",
-                    "hover:bg-destructive/90 transition-colors",
-                    "focus-ring"
-                  )}
-                  aria-label="Stop generation"
-                >
-                  <Square className="h-4 w-4 fill-current" />
-                </motion.button>
-              ) : (
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={handleSubmit}
-                  disabled={!inputMessage.trim()}
-                  className={cn(
-                    "h-10 w-10 min-h-touch min-w-touch rounded-xl",
-                    "flex items-center justify-center",
-                    "transition-all duration-fast",
-                    "focus-ring",
-                    inputMessage.trim()
-                      ? "bg-gradient-to-br from-primary to-accent text-primary-foreground shadow-md hover:shadow-lg"
-                      : "bg-muted text-muted-foreground cursor-not-allowed"
-                  )}
-                  aria-label="Send message"
-                >
-                  <Send className="h-4 w-4" />
-                </motion.button>
-              )}
+              <div className="flex items-center gap-2">
+                 {isLoading ? (
+                  <Button
+                    size="icon"
+                    onClick={stopGeneration}
+                    className="h-8 w-8 rounded-lg bg-foreground text-background hover:bg-foreground/90 transition-all hover:scale-105"
+                  >
+                    <Square className="h-3 w-3 fill-current" />
+                  </Button>
+                ) : (
+                  <Button
+                    size="icon"
+                    onClick={handleSubmit}
+                    disabled={!inputMessage.trim()}
+                    className={cn(
+                      "h-8 w-8 rounded-lg transition-all",
+                      inputMessage.trim() 
+                        ? "bg-foreground text-background hover:scale-105 active:scale-95" 
+                        : "bg-muted text-muted-foreground/30 opacity-50"
+                    )}
+                  >
+                    <Send className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+              </div>
             </div>
           </motion.div>
 
-          {/* Disclaimer */}
-          <p className="text-center text-[11px] text-muted-foreground mt-2 flex items-center justify-center gap-1">
-            <Sparkles className="h-3 w-3" />
-            <span>AI can make mistakes. Verify important legal information.</span>
-          </p>
+          {/* Pro Legal Footer Text */}
+          <div className="mt-3 flex items-center justify-center gap-4">
+             <span className="text-[10px] text-muted-foreground/40 font-medium uppercase tracking-[0.1em] flex items-center gap-1.5">
+                <Sparkles className="h-2.5 w-2.5" />
+                DOCKETDIVE PRO
+             </span>
+             <span className="h-2.5 w-px bg-border/40" />
+             <span className="text-[10px] text-muted-foreground/30 font-medium">
+                AI can make mistakes. Verify legal details.
+             </span>
+          </div>
         </div>
       </div>
     </div>

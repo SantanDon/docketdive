@@ -37,6 +37,10 @@ dotenv.config({ path: path.join(__dirname, "../../../.env") });
 
 initializeMemoryCollection().catch(console.error);
 
+// Allow streaming responses up to 60 seconds (Vercel Pro default)
+export const maxDuration = 60; 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: Request) {
   const start = Date.now();
   const encoder = new TextEncoder();
@@ -52,15 +56,37 @@ export async function POST(request: Request) {
       }
 
       try {
-        const body = await request.json();
-        const { 
-          message, 
+        // Parse JSON with robust error handling
+        let body;
+        try {
+          body = await request.json();
+        } catch (jsonError: any) {
+          // Try to read raw body as fallback
+          const rawBody = await request.text();
+          if (!rawBody || rawBody.trim().length === 0) {
+            sendChunk("error", "Empty request body");
+            controller.close();
+            return;
+          }
+          // Try parsing again
+          try {
+            body = JSON.parse(rawBody);
+          } catch (parseError: any) {
+            sendChunk("error", "Invalid JSON in request body");
+            controller.close();
+            return;
+          }
+        }
+
+        const {
+          message,
           provider,
           conversationHistory = [],
           conversationId = `conv_${Date.now()}`,
           userId = `anon_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, // Generate unique ID if not provided
           language = "en",
-          legalAidMode = false
+          legalAidMode = false,
+          privacyMode = false  // Client-side privacy preference
         } = body;
 
         if (!message || typeof message !== "string" || message.trim().length === 0) {
@@ -105,11 +131,11 @@ export async function POST(request: Request) {
         // Always build memory context for conversation continuity
         const [memoryContext, docs] = await Promise.all([
           buildMemoryContext(conversationHistory, query, userId, conversationId),
-          retrieveRelevantDocuments(query, conversationContextStr)
+          retrieveRelevantDocuments(query, conversationContextStr, userId, privacyMode)
         ]);
 
         const memoryContextStr = formatMemoryContextForPrompt(memoryContext);
-        const ragContext = buildContext(docs);
+        let ragContext = buildContext(docs);
         
         // ACCURACY CHECK: Determine whether we have usable context.
         // IMPORTANT: buildContext() can return an empty string if it filters aggressively.
@@ -158,22 +184,49 @@ export async function POST(request: Request) {
         
         // For topic queries asking for cases, verify we have relevant cases
         // BUT: Only reject if it's SPECIFICALLY asking for cases, not general legal concepts
-        if (isTopicQuery && hasContext) {
-          const queryLower = query.toLowerCase();
-          const sourceContent = docs.map(d => (d.content || '').toLowerCase()).join(' ');
-          
-          // Extract topic from query
-          const topicMatches = queryLower.match(/cases?\s+(?:deal|involve|concern|about)\s+(?:with\s+)?(.+?)(?:\?|$)/i);
-          if (topicMatches && topicMatches[1]) {
-            const topic = topicMatches[1].trim();
-            // Check if topic is in sources
-            if (!sourceContent.includes(topic) && !sourceContent.includes(topic.split(' ')[0] || '')) {
-              console.log(`⚠️ ACCURACY CHECK: Topic "${topic}" not found in sources - treating as no context`);
-              hasContext = false;
-              debugNoContextReasons.push('topic_not_in_sources');
-            }
-          }
+        
+        // --- SAFLII INTEGRATION START ---
+        // If we still don't have context but it looks like a case query, try the MCP
+        if (!hasContext && queryCaseMatch) {
+           try {
+             // Dynamic import to avoid circular dep issues during init if any
+             const { searchCaseLaw } = await import("../../../lib/saflii-service");
+             console.log(`[Chat] Local RAG miss for case "${queryCaseMatch[0]}". Attempting SAFLII MCP fetch...`);
+             
+             const response = await searchCaseLaw("all", queryCaseMatch[0]);
+             const safliiResults = response?.results;
+             
+             if (safliiResults && Array.isArray(safliiResults) && safliiResults.length > 0) {
+                console.log(`[Chat] SAFLII MCP returned ${safliiResults.length} results.`);
+                const newDocs = safliiResults.map((r: any) => ({
+                   content: `CASE SUMMARY FROM SAFLII:\nTitle: ${r.case_name}\nCourt: ${r.court}\nYear: ${r.year}\nID: ${r.case_id}\nSnippet: ${r.summary || ''}`,
+                   metadata: { 
+                      source: 'SAFLII MCP', 
+                      title: r.case_name, 
+                      url: r.url,
+                      score: 0.95
+                   },
+                   similarity: 0.95
+                } as any));
+                // Append to docs
+                docs.push(...newDocs);
+                // Rebuild context (note: we need to update ragContext variable)
+                hasContext = true;
+                
+                // Inform user we found it externally
+                sendChunk("status", "Found case info via SAFLII...");
+             } else {
+                console.log(`[Chat] SAFLII MCP returned no results.`);
+             }
+           } catch (err) {
+             console.error("[Chat] SAFLII MCP fetch failed:", err);
+           }
         }
+        // --- SAFLII INTEGRATION END ---
+
+        // Update ragContext if we added new docs
+        ragContext = buildContext(docs);
+
         
         // IMPORTANT: If we have documents, trust them unless we have a specific reason not to
         // General legal concept questions (like "What makes a will legally binding?") should use the context

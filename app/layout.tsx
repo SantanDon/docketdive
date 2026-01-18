@@ -2,12 +2,14 @@ import "./global.css";
 import { ThemeProvider } from "next-themes";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { PostHogProvider } from "./providers/PostHogProvider";
-import FeedbackPopup from "../components/FeedbackPopup";
+import RotatingStarCTA from "../components/RotatingStarCTA";
 import { ErrorProvider } from "./context/ErrorContext";
-import { ToastProvider } from "../components/ui/Toast";
+import { ToastProvider } from "../context/ToastContext";
+import { ToastContainer } from "../components/ui/Toast";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Suspense } from "react";
+import { PremiumPageLoader } from "@/components/LoadingStates";
 
 export const metadata: Metadata = {
   title: "DocketDive - South African Legal AI Assistant",
@@ -34,7 +36,14 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <ErrorBoundary>
           <ErrorProvider>
             <ToastProvider>
-              <Suspense fallback={<div>Loading...</div>}>
+                <Suspense fallback={
+                  <div className="min-h-screen bg-background">
+                    <PremiumPageLoader 
+                      message="Preparing legal environment..."
+                      showLogo={true}
+                    />
+                  </div>
+                }>
                 <PostHogProvider>
                   <ThemeProvider
                     attribute="class"
@@ -42,7 +51,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                     enableSystem
                   >
                     {children}
-                    <FeedbackPopup />
+                    <RotatingStarCTA />
+                    <ToastContainer />
                     <footer className="bg-muted/50 border-t mt-16">
                   <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
                     <div className="text-center text-sm text-muted-foreground">

@@ -50,18 +50,18 @@ export const toolThemes: Record<string, ToolTheme> = {
   },
   drafter: {
     name: "Drafting Assistant",
-    primary: "from-purple-500 to-indigo-600",
-    secondary: "from-purple-400 to-indigo-500",
-    accent: "from-indigo-400 to-violet-500",
-    gradient: "bg-gradient-to-br from-purple-500/10 via-indigo-500/5 to-violet-500/10",
+    primary: "from-slate-600 to-slate-800",
+    secondary: "from-slate-500 to-slate-700",
+    accent: "from-slate-400 to-slate-600",
+    gradient: "bg-gradient-to-br from-slate-500/10 via-slate-500/5 to-slate-400/10",
     icon: "FileSignature",
     description: "Generate professional legal documents with AI-powered precision",
     uploadMessage: "Upload reference documents or provide drafting context",
-    headerBg: "bg-gradient-to-br from-purple-500/20 via-indigo-500/10 to-violet-500/20",
-    cardBg: "bg-gradient-to-br from-purple-500/5 via-indigo-500/3 to-violet-500/5",
-    buttonStyle: "bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700",
-    textColor: "text-purple-600 dark:text-purple-400",
-    borderColor: "border-purple-500/20 dark:border-purple-500/30"
+    headerBg: "bg-gradient-to-br from-slate-500/20 via-slate-500/10 to-slate-400/20",
+    cardBg: "bg-gradient-to-br from-slate-500/5 via-slate-500/3 to-slate-400/5",
+    buttonStyle: "bg-gradient-to-r from-slate-600 to-slate-800 hover:from-slate-700 hover:to-slate-900",
+    textColor: "text-slate-600 dark:text-slate-400",
+    borderColor: "border-slate-500/20 dark:border-slate-500/30"
   },
   popia: {
     name: "POPIA Checker",
@@ -85,11 +85,19 @@ export const getToolTheme = (toolId: string): ToolTheme => {
     'auditor': 'auditor',
     'clause-auditor': 'auditor',
     'simplifier': 'simplifier',
+    'simplifier': 'simplifier',
+    'simplify': 'simplifier',
     'document-simplifier': 'simplifier',
     'drafter': 'drafter',
     'drafting-assistant': 'drafter',
     'popia': 'popia',
-    'popia-checker': 'popia'
+    'popia': 'popia',
+
+    'popia-checker': 'popia',
+
+    'compare': 'auditor', // Fallback or dedicated theme
+
+    'comparison': 'auditor'
   };
 
   const themeKey = themeMap[toolId] || 'auditor';

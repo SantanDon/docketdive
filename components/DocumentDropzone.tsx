@@ -270,14 +270,14 @@ export default function DocumentDropzone({
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         className={cn(
-          "relative rounded-2xl transition-all duration-300 cursor-pointer overflow-hidden",
+          "relative rounded-3xl transition-all duration-300 cursor-pointer overflow-hidden",
           "flex flex-col items-center justify-center gap-3",
           variant === "full" ? "p-10 min-h-[220px]" : "p-6 min-h-[140px]",
-          "bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm border border-slate-200/50 dark:border-slate-800/50 shadow-sm hover:shadow-md hover:bg-white/80 dark:hover:bg-slate-900/80 hover:border-blue-400/30 dark:hover:border-indigo-400/30",
-          state === "dragging" && "border-primary bg-primary/5 scale-[1.01] ring-4 ring-primary/10",
+          "bg-muted/20 border border-border/40 hover:bg-muted/30 hover:border-primary/40",
+          state === "dragging" && "border-primary/60 bg-primary/5 scale-[1.01]",
           (state === "uploading" || state === "ocr") && "cursor-wait",
-          state === "success" && "border-green-500/50 bg-green-500/5",
-          state === "error" && "border-destructive/50 bg-destructive/5",
+          state === "success" && "border-green-500/40 bg-green-500/5",
+          state === "error" && "border-destructive/40 bg-destructive/5",
           disabled && "opacity-50 cursor-not-allowed"
         )}
         animate={{

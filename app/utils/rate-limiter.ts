@@ -143,12 +143,15 @@ export class RateLimiter {
     }
 
     // If approaching limits, switch to Ollama (faster, local, no rate limits)
-    if (quota.requestCount > this.config.maxRequestsPerHour * 0.8) {
+    // BUT ONLY IF NOT IN PRODUCTION (Ollama is likely local-only)
+    const isProduction = process.env.NODE_ENV === "production" || process.env.VERCEL === "1";
+    
+    if (!isProduction && quota.requestCount > this.config.maxRequestsPerHour * 0.8) {
       preferredModel = 'ollama';
       userModelPreference.set(userId, 'ollama');
     }
 
-    if (quota.tokenCount > this.config.maxTokensPerHour * 0.8) {
+    if (!isProduction && quota.tokenCount > this.config.maxTokensPerHour * 0.8) {
       preferredModel = 'ollama';
       userModelPreference.set(userId, 'ollama');
     }
